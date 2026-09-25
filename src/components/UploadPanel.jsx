@@ -285,6 +285,27 @@ export default function UploadPanel({
                     </select>
                   </div>
                 </div>
+
+                {/* Toggle 360 Foto (apenas para imagens) */}
+                {slide.type === 'image' && (
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                    <label className="text-xs text-slate-300 font-medium flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!slide.is360}
+                        onChange={(e) => updateSlide(slide.id, 'is360', e.target.checked)}
+                        className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-sky-500 focus:ring-sky-500"
+                      />
+                      <span>Imagem Panorâmica 360°</span>
+                    </label>
+                    {slide.is360 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Visão 360° Ativa
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}

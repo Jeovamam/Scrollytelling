@@ -185,9 +185,17 @@ export default function ScrollytellingPreview({ slides, settings }) {
                           key={slide.id}
                           className={`preview-slide absolute inset-0 w-full h-full flex items-center justify-center ${index === 0 ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
                         >
-                          {/* Media */}
+                          {/* Media (2D, Vídeo ou 360) */}
                           <div className="absolute inset-0 w-full h-full overflow-hidden">
-                            {slide.type === 'video' ? (
+                            {slide.is360 ? (
+                              <div className="relative w-full h-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                                <img src={slide.url} alt={slide.title} className="preview-media w-full h-full object-cover scale-105 filter brightness-90" />
+                                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-amber-500/20 border border-amber-500/40 text-amber-300 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Ambiente 360° Interativo</span>
+                                </div>
+                              </div>
+                            ) : slide.type === 'video' ? (
                               <video src={slide.url} autoPlay muted loop playsInline className="preview-media w-full h-full object-cover" />
                             ) : (
                               <img src={slide.url} alt={slide.title} className="preview-media w-full h-full object-cover" />

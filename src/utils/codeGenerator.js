@@ -1,24 +1,37 @@
 /**
  * Generates standalone, production-ready HTML, CSS, and JS code for Scrollytelling.
+ * Supports standard images, short videos, and 360-degree equirectangular panoramas!
  */
 
 export function generateHTML(slides, settings = {}) {
   const { title = "Tour Virtual - Landing Page", theme = "dark" } = settings;
+  const has360 = slides.some(s => s.is360);
 
   const slidesMarkup = slides.map((slide, index) => {
     const isVideo = slide.type === 'video' || slide.file?.type?.startsWith('video/');
+    const is360 = !!slide.is360;
     const src = slide.fileName ? `assets/${slide.fileName}` : slide.url;
     
-    const mediaTag = isVideo
-      ? `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`
-      : `<img src="${src}" alt="${escapeHtml(slide.title || 'Slide ' + (index + 1))}" class="scrolly-media" loading="${index === 0 ? 'eager' : 'lazy'}" />`;
+    let mediaTag = '';
+    if (is360) {
+      mediaTag = `
+        <div id="panorama-${index}" class="scrolly-panorama" data-src="${src}"></div>
+        <div class="scrolly-360-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          <span>Ambiente 360° Interativo (Arraste para girar)</span>
+        </div>`;
+    } else if (isVideo) {
+      mediaTag = `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`;
+    } else {
+      mediaTag = `<img src="${src}" alt="${escapeHtml(slide.title || 'Slide ' + (index + 1))}" class="scrolly-media" loading="${index === 0 ? 'eager' : 'lazy'}" />`;
+    }
 
     const posClass = `pos-${slide.captionPosition || 'bottom-left'}`;
     const themeClass = `theme-${slide.overlayTheme || 'dark'}`;
 
     return `
-      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} -->
-      <div class="scrolly-slide" data-slide-index="${index}">
+      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} ${is360 ? '(360° Panorama)' : ''} -->
+      <div class="scrolly-slide" data-slide-index="${index}" data-is-360="${is360}">
         <div class="scrolly-media-wrapper">
           ${mediaTag}
           <div class="scrolly-overlay"></div>
@@ -29,6 +42,7 @@ export function generateHTML(slides, settings = {}) {
           ${slide.caption ? `<p class="scrolly-desc">${escapeHtml(slide.caption)}</p>` : ''}
           <div class="scrolly-badge">
             <span>${String(index + 1).padStart(2, '0')}</span> / ${String(slides.length).padStart(2, '0')}
+            ${is360 ? ' &bull; VISÃO 360°' : ''}
           </div>
         </div>` : ''}
       </div>`;
@@ -45,6 +59,9 @@ export function generateHTML(slides, settings = {}) {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  ${has360 ? `
+  <!-- Pannellum 360° Panorama Viewer CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>` : ''}
   
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -84,16 +101,19 @@ export function generateHTML(slides, settings = {}) {
   <!-- GSAP & ScrollTrigger CDN -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  ${has360 ? `
+  <!-- Pannellum 360° Panorama Viewer JS -->
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>` : ''}
   <script src="script.js"></script>
 </body>
 </html>`;
 }
 
 export function generateCSS(settings = {}) {
-  const { zoomScale = 1.18, speedFactor = 1 } = settings;
+  const { zoomScale = 1.18 } = settings;
 
   return `/* ==========================================================================
-   SCROLLYTELLING STYLES - GERADO DINAMICAMENTE
+   SCROLLYTELLING STYLES - SUPORTE 2D, VÍDEO E PANORAMA 360°
    ========================================================================== */
 
 :root {
@@ -215,6 +235,34 @@ body.scrolly-body {
   object-position: center;
   transform: scale(1);
   will-change: transform;
+}
+
+/* Panorama 360° Viewer */
+.scrolly-panorama {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+
+.scrolly-360-badge {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  background: rgba(9, 13, 22, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  color: #fbbf24;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
 }
 
 .scrolly-overlay {
@@ -392,30 +440,46 @@ export function generateJS(slides, settings = {}) {
   const slideCount = slides.length;
 
   return `/* ==========================================================================
-   SCROLLYTELLING ENGINE (GSAP + ScrollTrigger)
-   Efeito: Zoom em profundidade ("Adentrar") com sobreposição fluida
+   SCROLLYTELLING ENGINE (GSAP + ScrollTrigger + Pannellum 360)
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Registrar plugin ScrollTrigger do GSAP
   gsap.registerPlugin(ScrollTrigger);
 
   const section = document.querySelector("#tour-virtual");
   const slides = gsap.utils.toArray(".scrolly-slide");
   const slideCount = slides.length;
+  const panViewers = {};
 
   if (!section || slideCount === 0) return;
 
-  // Ajustar altura total da seção com base na quantidade de mídias (ex: 100vh por slide)
+  // Inicializar Panoramas 360 se houver Pannellum disponível
+  slides.forEach((slide, i) => {
+    const is360 = slide.getAttribute("data-is-360") === "true";
+    const panElem = slide.querySelector(".scrolly-panorama");
+
+    if (is360 && panElem && window.pannellum) {
+      const src = panElem.getAttribute("data-src");
+      panViewers[i] = pannellum.viewer(\`panorama-\${i}\`, {
+        type: "equirectangular",
+        panorama: src,
+        autoLoad: true,
+        showControls: false,
+        haov: 120,
+        vaov: 75,
+        hfov: 100
+      });
+    }
+  });
+
   section.style.height = \`\${slideCount * 100}vh\`;
 
-  // Criar Timeline Principal com ScrollTrigger Pinned
   const tl = gsap.timeline({
     scrollTrigger: {
       trigger: section,
       start: "top top",
       end: "bottom bottom",
-      scrub: ${scrubDuration}, // Movimento suave sincronizado com a rolagem
+      scrub: ${scrubDuration},
       anticipatePin: 1
     }
   });
@@ -423,28 +487,19 @@ document.addEventListener("DOMContentLoaded", () => {
   slides.forEach((slide, i) => {
     const media = slide.querySelector(".scrolly-media");
     const caption = slide.querySelector(".scrolly-caption-box");
+    const is360 = slide.getAttribute("data-is-360") === "true";
 
-    // Configuração inicial do Slide 0 vs Slides subsequentes
     if (i === 0) {
-      // O primeiro slide começa visível e faz zoom sutil ao rolar para o segundo
       if (media) {
-        tl.to(media, {
-          scale: ${zoomScale},
-          ease: "power1.inOut"
-        }, 0);
+        tl.to(media, { scale: ${zoomScale}, ease: "power1.inOut" }, 0);
       }
     } else {
-      const prevSlide = slides[i - 1];
-      const prevMedia = prevSlide ? prevSlide.querySelector(".scrolly-media") : null;
-
-      // 1. Mostrar slide atual (fade in + entrada suave)
       tl.to(slide, {
         autoAlpha: 1,
         duration: 1,
         ease: "power2.out"
       }, i - 0.2);
 
-      // 2. Transição de profundidade no elemento de mídia
       if (media) {
         tl.fromTo(media, 
           { scale: 1.25 },
@@ -453,7 +508,6 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      // 3. Efeito opcional de zoom contínuo para passar ao próximo
       if (i < slideCount - 1 && media) {
         tl.to(media, {
           scale: ${zoomScale},
@@ -463,7 +517,18 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Animação de entrada da Legenda/Título
+    // Se for 360°, rotação panorâmica sincronizada com o scroll
+    if (is360 && panViewers[i]) {
+      tl.to({}, {
+        onUpdate: function () {
+          const progress = this.progress();
+          const yawAngle = -180 + (progress * 360); // Gira 360 graus na horizontal
+          if (panViewers[i]) panViewers[i].setYaw(yawAngle, false);
+        },
+        duration: 1.5
+      }, i - 0.1);
+    }
+
     if (caption) {
       tl.fromTo(caption,
         { opacity: 0, y: 30 },
@@ -471,7 +536,6 @@ document.addEventListener("DOMContentLoaded", () => {
         i === 0 ? 0.1 : i - 0.1
       );
 
-      // Se não for o último slide, esmaecer a legenda antes de trocar
       if (i < slideCount - 1) {
         tl.to(caption, {
           opacity: 0,
@@ -483,7 +547,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Otimização: atualizar ScrollTrigger no redimensionamento da janela
   let resizeTimeout;
   window.addEventListener("resize", () => {
     clearTimeout(resizeTimeout);
