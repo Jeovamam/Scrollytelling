@@ -1,6 +1,6 @@
 /**
  * Generates standalone, production-ready HTML, CSS, and JS code for Scrollytelling.
- * Specialization: Hyper-realistic "Adentrar no Imóvel" + Game-Style Mouse Move 360 Look Around.
+ * Specialization: Hyper-realistic "Adentrar no Imóvel" + Isolated 2-Finger Scroll vs 1-Finger 360 Look Around.
  */
 
 export function generateHTML(slides, settings = {}) {
@@ -473,7 +473,7 @@ export function generateJS(slides, settings = {}) {
   const slideCount = slides.length;
 
   return `/* ==========================================================================
-   SCROLLYTELLING ENGINE - FLY-THROUGH + MOUSE HOVER 360 LOOK AROUND (GAME STYLE)
+   SCROLLYTELLING ENGINE - FLY-THROUGH + ISOLATED 2-FINGER SCROLL & 1-FINGER 360 HOVER
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -486,7 +486,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!section || slideCount === 0) return;
 
-  // Função para inicializar o visualizador 360 estilo jogos (Mouse Move / Hover Look-Around)
   function createThree360Viewer(container, imageSrc) {
     if (!window.THREE || !container) return null;
     const w = container.clientWidth || window.innerWidth;
@@ -519,19 +518,35 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentLon = 0;
     let currentLat = 0;
     let isUserInteracting = false;
+    let isScrolling = false;
+    let scrollTimeout = null;
+
     let onPointerDownMouseX = 0;
     let onPointerDownMouseY = 0;
     let onPointerDownLon = 0;
     let onPointerDownLat = 0;
 
-    // Movimento do mouse sem clicar (estilo jogos)
+    // Detectar rolagem de 2 dedos (wheel) para congelar os desvios da câmera enquanto avança/retrocede
+    window.addEventListener("wheel", () => {
+      isScrolling = true;
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        isScrolling = false;
+      }, 180);
+    }, { passive: true });
+
+    // Movimento com 1 dedo / cursor (olhar em volta) com Deadzone e Limite
     container.addEventListener("mousemove", (e) => {
-      if (isUserInteracting) return;
+      if (isUserInteracting || isScrolling) return;
       const rect = container.getBoundingClientRect();
-      const normX = ((e.clientX - rect.left) / rect.width) - 0.5;
-      const normY = ((e.clientY - rect.top) / rect.height) - 0.5;
-      hoverYawOffset = normX * 90;
-      hoverPitchOffset = -normY * 40;
+      let normX = ((e.clientX - rect.left) / rect.width) - 0.5;
+      let normY = ((e.clientY - rect.top) / rect.height) - 0.5;
+
+      if (Math.abs(normX) < 0.08) normX = 0;
+      if (Math.abs(normY) < 0.08) normY = 0;
+
+      hoverYawOffset = normX * 50;
+      hoverPitchOffset = -normY * 25;
     });
 
     const onPointerDown = (event) => {
@@ -570,10 +585,14 @@ document.addEventListener("DOMContentLoaded", () => {
       requestAnimationFrame(animate);
 
       if (!isUserInteracting) {
-        const destLon = targetYaw + hoverYawOffset;
-        const destLat = targetPitch + hoverPitchOffset;
-        currentLon += (destLon - currentLon) * 0.06;
-        currentLat += (destLat - currentLat) * 0.06;
+        // Durante o scroll de 2 dedos, zerar desvios para o avanço/recuo ser 100% reto
+        const targetHoverYaw = isScrolling ? 0 : hoverYawOffset;
+        const targetHoverPitch = isScrolling ? 0 : hoverPitchOffset;
+
+        const destLon = targetYaw + targetHoverYaw;
+        const destLat = targetPitch + targetHoverPitch;
+        currentLon += (destLon - currentLon) * 0.04;
+        currentLat += (destLat - currentLat) * 0.04;
       }
 
       const phi = THREE.MathUtils.degToRad(90 - currentLat);

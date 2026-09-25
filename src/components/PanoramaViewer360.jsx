@@ -25,11 +25,10 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // 2. Equirectangular Sphere Geometry (inverted inside)
+    // 2. Equirectangular Sphere Geometry
     const geometry = new THREE.SphereGeometry(500, 60, 40);
     geometry.scale(-1, 1, 1);
 
-    // Texture Loader
     const textureLoader = new THREE.TextureLoader();
 
     textureLoader.load(
@@ -46,8 +45,11 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
       }
     );
 
-    // Interaction controls: Mouse Move / Hover Look-Around (Game Style) + Click & Drag
+    // Interaction states
     let isUserInteracting = false;
+    let isScrolling = false;
+    let scrollTimeout = null;
+
     let onPointerDownMouseX = 0;
     let onPointerDownMouseY = 0;
     let lon = yaw;
@@ -55,24 +57,37 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
     let onPointerDownLon = 0;
     let onPointerDownLat = 0;
 
-    // Mouse hover offsets (Estilo Jogos - sem precisar clicar!)
+    // Mouse Hover (1 Dedo / Cursor) offsets suaves com limite de ±25°
     let hoverYawOffset = 0;
     let hoverPitchOffset = 0;
 
+    // Detectar rolagem de 2 dedos (scroll) para congelar desvios da câmera enquanto avança/retrocede
+    const handleWheelScroll = () => {
+      isScrolling = true;
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        isScrolling = false;
+      }, 180);
+    };
+
     const onMouseMoveHover = (event) => {
-      if (isUserInteracting || !interactive) return;
+      if (isUserInteracting || !interactive || isScrolling) return;
       
       const rect = container.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
 
-      // Map mouse position from center (-0.5 to +0.5)
-      const normX = (mouseX / rect.width) - 0.5;
-      const normY = (mouseY / rect.height) - 0.5;
+      // Normalizado do centro (-0.5 a +0.5) com Deadzone no meio
+      let normX = (mouseX / rect.width) - 0.5;
+      let normY = (mouseY / rect.height) - 0.5;
 
-      // Pan up to +/- 45 degrees horizontally and +/- 20 degrees vertically just by moving cursor!
-      hoverYawOffset = normX * 90; 
-      hoverPitchOffset = -normY * 40;
+      // Aplicar zona morta suave no centro (deadzone)
+      if (Math.abs(normX) < 0.08) normX = 0;
+      if (Math.abs(normY) < 0.08) normY = 0;
+
+      // Limitar desvio de visão em 1 dedo para ±25° (suave e controlado)
+      hoverYawOffset = normX * 50; 
+      hoverPitchOffset = -normY * 25;
     };
 
     const onPointerDown = (event) => {
@@ -100,24 +115,28 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
     };
 
     const domElement = renderer.domElement;
+    window.addEventListener('wheel', handleWheelScroll, { passive: true });
     container.addEventListener('mousemove', onMouseMoveHover);
     domElement.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
 
-    // Animation Loop with Smooth LERP Damping & Hover Look-Around
+    // Animation Loop
     let animationFrameId;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
       if (!isUserInteracting) {
-        // Target angles combine scroll position + mouse hover offset (game style look-around)
-        const targetLon = yaw + hoverYawOffset;
-        const targetLat = pitch + hoverPitchOffset;
+        // Quando está rolando com 2 dedos (isScrolling), zerar desvios laterais para avançar reto!
+        const targetHoverYaw = isScrolling ? 0 : hoverYawOffset;
+        const targetHoverPitch = isScrolling ? 0 : hoverPitchOffset;
 
-        // Softly interpolate (LERP) current camera angles back towards target
-        lon += (targetLon - lon) * 0.06;
-        lat += (targetLat - lat) * 0.06;
+        const targetLon = yaw + targetHoverYaw;
+        const targetLat = pitch + targetHoverPitch;
+
+        // Amortecimento LERP ultrassuave (4%)
+        lon += (targetLon - lon) * 0.04;
+        lat += (targetLat - lat) * 0.04;
       }
 
       const phi = THREE.MathUtils.degToRad(90 - lat);
@@ -132,7 +151,6 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
     };
     animate();
 
-    // Resize handler
     const handleResize = () => {
       if (!container) return;
       const w = container.clientWidth;
@@ -149,6 +167,7 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('wheel', handleWheelScroll);
       container.removeEventListener('mousemove', onMouseMoveHover);
       domElement.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
