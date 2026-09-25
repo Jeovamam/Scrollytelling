@@ -1,10 +1,10 @@
 /**
  * Generates standalone, production-ready HTML, CSS, and JS code for Scrollytelling.
- * Supports standard 2D images, short videos, and TRUE 360-degree Equirectangular WebGL Panoramas!
+ * Specialization: Hyper-realistic "Adentrar no Imóvel" (Property Fly-Through Walkthrough).
  */
 
 export function generateHTML(slides, settings = {}) {
-  const { title = "Tour Virtual - Landing Page", theme = "dark" } = settings;
+  const { title = "Tour Virtual Imersivo - Landing Page Real Estate" } = settings;
   const has360 = slides.some(s => s.is360);
 
   const slidesMarkup = slides.map((slide, index) => {
@@ -18,19 +18,19 @@ export function generateHTML(slides, settings = {}) {
         <div id="panorama-${index}" class="scrolly-panorama" data-src="${src}"></div>
         <div class="scrolly-360-badge">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          <span>Visão 360° Interativa (Arraste para girar)</span>
+          <span>Ambiente 360° Interativo (Arraste para girar)</span>
         </div>`;
     } else if (isVideo) {
       mediaTag = `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`;
     } else {
-      mediaTag = `<img src="${src}" alt="${escapeHtml(slide.title || 'Slide ' + (index + 1))}" class="scrolly-media" loading="${index === 0 ? 'eager' : 'lazy'}" />`;
+      mediaTag = `<img src="${src}" alt="${escapeHtml(slide.title || 'Ambiente ' + (index + 1))}" class="scrolly-media" loading="${index === 0 ? 'eager' : 'lazy'}" />`;
     }
 
     const posClass = `pos-${slide.captionPosition || 'bottom-left'}`;
     const themeClass = `theme-${slide.overlayTheme || 'dark'}`;
 
     return `
-      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} ${is360 ? '(Equirretangular 360° WebGL)' : ''} -->
+      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} -->
       <div class="scrolly-slide" data-slide-index="${index}" data-is-360="${is360}">
         <div class="scrolly-media-wrapper">
           ${mediaTag}
@@ -38,12 +38,14 @@ export function generateHTML(slides, settings = {}) {
         </div>
         ${(slide.title || slide.caption) ? `
         <div class="scrolly-caption-box ${posClass} ${themeClass}">
+          <div class="scrolly-step-tag">
+            <span class="step-num">${String(index + 1).padStart(2, '0')}</span>
+            <span class="step-divider">/</span>
+            <span class="step-total">${String(slides.length).padStart(2, '0')}</span>
+            <span class="step-label">Passo a Passo do Imóvel</span>
+          </div>
           ${slide.title ? `<h3 class="scrolly-title">${escapeHtml(slide.title)}</h3>` : ''}
           ${slide.caption ? `<p class="scrolly-desc">${escapeHtml(slide.caption)}</p>` : ''}
-          <div class="scrolly-badge">
-            <span>${String(index + 1).padStart(2, '0')}</span> / ${String(slides.length).padStart(2, '0')}
-            ${is360 ? ' &bull; PANORAMA 360°' : ''}
-          </div>
         </div>` : ''}
       </div>`;
   }).join('\n');
@@ -58,7 +60,7 @@ export function generateHTML(slides, settings = {}) {
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -67,22 +69,22 @@ export function generateHTML(slides, settings = {}) {
   <!-- Header opcional da sua Landing Page -->
   <header class="lp-header">
     <div class="lp-container">
-      <span class="lp-logo">Empresarial & Real Estate</span>
-      <a href="#contato" class="lp-btn">Agendar Visita</a>
+      <span class="lp-logo">RESIDENCIAL & EXCLUSIVE REAL ESTATE</span>
+      <a href="#contato" class="lp-btn">Agendar Visita Guiada</a>
     </div>
   </header>
 
-  <!-- SEÇÃO DE SCROLLYTELLING (TOUR VIRTUAL IMPERDÍVEL) -->
+  <!-- SEÇÃO DE SCROLLYTELLING (EFEITO ADENTRANDO NO IMÓVEL) -->
   <section class="scrollytelling-section" id="tour-virtual">
     <div class="scrollytelling-sticky-viewport">
       <div class="scrollytelling-slides-wrapper">
         ${slidesMarkup}
       </div>
       
-      <!-- Indicador de Scroll -->
+      <!-- Indicador de Navegação em Profundidade -->
       <div class="scrolly-scroll-hint">
-        <span class="mouse-icon"></span>
-        <small>Role para explorar o espaço</small>
+        <div class="mouse-icon"></div>
+        <small>Role para avançar e adentrar nos ambientes</small>
       </div>
     </div>
   </section>
@@ -90,8 +92,8 @@ export function generateHTML(slides, settings = {}) {
   <!-- Conteúdo subsequente da Landing Page -->
   <section class="lp-content-section" id="contato">
     <div class="lp-container">
-      <h2>Gostou da experiência?</h2>
-      <p>Entre em contato com nossa equipe comercial e receba a apresentação técnica completa.</p>
+      <h2>Pronto para conhecer este imóvel pessoalmente?</h2>
+      <p>Nossa equipe de especialistas está a postos para agendar sua visita exclusiva.</p>
     </div>
   </section>
 
@@ -99,7 +101,7 @@ export function generateHTML(slides, settings = {}) {
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
   ${has360 ? `
-  <!-- Three.js CDN para Projeção Esférica 360° -->
+  <!-- Three.js CDN para Projeção 360° -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>` : ''}
   <script src="script.js"></script>
 </body>
@@ -107,19 +109,19 @@ export function generateHTML(slides, settings = {}) {
 }
 
 export function generateCSS(settings = {}) {
-  const { zoomScale = 1.18 } = settings;
+  const { zoomScale = 1.45 } = settings;
 
   return `/* ==========================================================================
-   SCROLLYTELLING STYLES - SUPORTE 2D, VÍDEO E PROJEÇÃO ESFÉRICA 360° WEBGL
+   SCROLLYTELLING STYLES - EFEITO "ADENTRANDO NO IMÓVEL" (FLY-THROUGH WALKTHROUGH)
    ========================================================================== */
 
 :root {
   --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --color-dark-bg: #090d16;
+  --color-dark-bg: #070a12;
   --color-text-light: #ffffff;
   --color-accent: #0284c7;
-  --glass-bg: rgba(15, 23, 42, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-bg: rgba(7, 10, 18, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.14);
   --zoom-max: ${zoomScale};
 }
 
@@ -144,38 +146,42 @@ body.scrolly-body {
   left: 0;
   right: 0;
   z-index: 100;
-  padding: 18px 24px;
-  background: linear-gradient(to bottom, rgba(9, 13, 22, 0.9), transparent);
-  backdrop-filter: blur(8px);
+  padding: 18px 32px;
+  background: linear-gradient(to bottom, rgba(7, 10, 18, 0.95), transparent);
+  backdrop-filter: blur(12px);
 }
 .lp-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 .lp-logo {
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .lp-btn {
   background: var(--color-accent);
   color: #fff;
-  padding: 10px 20px;
+  padding: 10px 24px;
   border-radius: 999px;
   text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: transform 0.2s ease, background 0.2s ease;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
 }
 .lp-btn:hover {
   transform: translateY(-2px);
   background: #0369a1;
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
 }
 
-/* Container de Scrollytelling */
+/* Container de Scrollytelling Pinned */
 .scrollytelling-section {
   position: relative;
   width: 100%;
@@ -197,7 +203,7 @@ body.scrolly-body {
   height: 100%;
 }
 
-/* Slide individual com suporte a sobreposição em profundidade */
+/* Slide individual com efeito de profundidade Z-Axis Travel */
 .scrolly-slide {
   position: absolute;
   top: 0;
@@ -206,10 +212,11 @@ body.scrolly-body {
   height: 100%;
   opacity: 0;
   visibility: hidden;
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
   display: flex;
   align-items: center;
   justify-content: center;
+  perspective: 1200px;
 }
 
 .scrolly-slide[data-slide-index="0"] {
@@ -223,6 +230,7 @@ body.scrolly-body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  transform-origin: center center;
 }
 
 .scrolly-media {
@@ -231,7 +239,8 @@ body.scrolly-body {
   object-fit: cover;
   object-position: center;
   transform: scale(1);
-  will-change: transform;
+  will-change: transform, filter;
+  transition: filter 0.3s ease;
 }
 
 /* Panorama 360° Viewer */
@@ -253,14 +262,14 @@ body.scrolly-body {
   left: 50%;
   transform: translateX(-50%);
   z-index: 15;
-  background: rgba(9, 13, 22, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
+  background: rgba(7, 10, 18, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
   color: #fbbf24;
-  padding: 6px 14px;
+  padding: 6px 16px;
   border-radius: 999px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -270,38 +279,61 @@ body.scrolly-body {
 .scrolly-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(9, 13, 22, 0.4) 0%,
-    rgba(9, 13, 22, 0.2) 40%,
-    rgba(9, 13, 22, 0.75) 100%
+  background: radial-gradient(
+    circle at center,
+    transparent 20%,
+    rgba(7, 10, 18, 0.4) 60%,
+    rgba(7, 10, 18, 0.85) 100%
   );
   pointer-events: none;
 }
 
-/* Legendas Flutuantes e Posições */
+/* Legendas Flutuantes com Tag de Passo a Passo */
 .scrolly-caption-box {
   position: absolute;
   z-index: 10;
-  max-width: 480px;
+  max-width: 520px;
   width: calc(100% - 48px);
-  padding: 24px 28px;
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  padding: 28px 32px;
+  border-radius: 20px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   will-change: transform, opacity;
+}
+
+.scrolly-step-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.scrolly-step-tag .step-num {
+  font-size: 0.95rem;
+}
+.scrolly-step-tag .step-divider {
+  opacity: 0.4;
+}
+.scrolly-step-tag .step-label {
+  margin-left: 4px;
+  opacity: 0.8;
+  font-size: 0.7rem;
 }
 
 /* Temas da caixa de legenda */
 .scrolly-caption-box.theme-dark {
-  background: rgba(9, 13, 22, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
+  background: rgba(7, 10, 18, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
 }
 .scrolly-caption-box.theme-glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 .scrolly-caption-box.theme-minimal {
   background: transparent;
@@ -312,16 +344,16 @@ body.scrolly-body {
 
 /* Posicionamentos */
 .scrolly-caption-box.pos-bottom-left {
-  bottom: 48px;
-  left: 48px;
+  bottom: 56px;
+  left: 56px;
 }
 .scrolly-caption-box.pos-bottom-right {
-  bottom: 48px;
-  right: 48px;
+  bottom: 56px;
+  right: 56px;
 }
 .scrolly-caption-box.pos-center-left {
   top: 50%;
-  left: 48px;
+  left: 56px;
   transform: translateY(-50%);
 }
 .scrolly-caption-box.pos-center {
@@ -332,30 +364,18 @@ body.scrolly-body {
 }
 
 .scrolly-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1.25;
-  margin-bottom: 10px;
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 12px;
   color: #ffffff;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 .scrolly-desc {
-  font-size: 0.98rem;
-  line-height: 1.6;
+  font-size: 0.95rem;
+  line-height: 1.65;
   color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 14px;
-}
-
-.scrolly-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--color-accent);
-  text-transform: uppercase;
 }
 
 /* Indicador de Scroll */
@@ -368,20 +388,21 @@ body.scrolly-body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  opacity: 0.7;
+  opacity: 0.8;
   transition: opacity 0.3s;
   pointer-events: none;
   z-index: 20;
 }
 .scrolly-scroll-hint small {
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 .mouse-icon {
-  width: 20px;
-  height: 32px;
-  border: 2px solid rgba(255, 255, 255, 0.6);
+  width: 22px;
+  height: 36px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
   border-radius: 12px;
   position: relative;
 }
@@ -391,27 +412,28 @@ body.scrolly-body {
   top: 6px;
   left: 50%;
   width: 4px;
-  height: 6px;
+  height: 8px;
   margin-left: -2px;
   background: white;
   border-radius: 2px;
-  animation: scrollAnim 1.8s infinite ease-in-out;
+  animation: scrollAnim 1.6s infinite cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 @keyframes scrollAnim {
   0% { transform: translateY(0); opacity: 1; }
-  100% { transform: translateY(12px); opacity: 0; }
+  100% { transform: translateY(14px); opacity: 0; }
 }
 
 /* Seção pós-tour */
 .lp-content-section {
   padding: 120px 24px;
-  background-color: #0c121e;
+  background-color: #070a12;
   text-align: center;
 }
 .lp-content-section h2 {
-  font-size: 2.2rem;
+  font-size: 2.4rem;
   margin-bottom: 16px;
+  letter-spacing: -0.02em;
 }
 
 /* Responsividade Mobile */
@@ -428,7 +450,7 @@ body.scrolly-body {
     width: calc(100% - 48px);
   }
   .scrolly-title {
-    font-size: 1.35rem;
+    font-size: 1.45rem;
   }
   .scrolly-desc {
     font-size: 0.88rem;
@@ -438,11 +460,12 @@ body.scrolly-body {
 }
 
 export function generateJS(slides, settings = {}) {
-  const { zoomScale = 1.18, scrubDuration = 1 } = settings;
+  const { zoomScale = 1.45, scrubDuration = 1 } = settings;
   const slideCount = slides.length;
 
   return `/* ==========================================================================
-   SCROLLYTELLING ENGINE (GSAP + ScrollTrigger + Three.js 360 WebGL Sphere)
+   SCROLLYTELLING ENGINE - EFEITO "ADENTRANDO NO IMÓVEL" (CAMERA FLY-THROUGH)
+   Simula a sensação contínua de caminhar para dentro dos ambientes do imóvel.
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -455,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!section || slideCount === 0) return;
 
-  // Função para inicializar o visualizador de esfera 360° equirretangular com Three.js
+  // Função para inicializar o visualizador 360 com Three.js
   function createThree360Viewer(container, imageSrc) {
     if (!window.THREE || !container) return null;
     const w = container.clientWidth || window.innerWidth;
@@ -470,7 +493,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Criar geometria esférica e inverter normais para a câmera ficar no centro
     const geometry = new THREE.SphereGeometry(500, 60, 40);
     geometry.scale(-1, 1, 1);
 
@@ -482,11 +504,9 @@ document.addEventListener("DOMContentLoaded", () => {
       scene.add(mesh);
     });
 
-    let currentYaw = 0;
     function updateYaw(newYaw) {
-      currentYaw = newYaw;
       const phi = THREE.MathUtils.degToRad(90);
-      const theta = THREE.MathUtils.degToRad(currentYaw);
+      const theta = THREE.MathUtils.degToRad(newYaw);
       const targetX = 500 * Math.sin(phi) * Math.cos(theta);
       const targetY = 500 * Math.cos(phi);
       const targetZ = 500 * Math.sin(phi) * Math.sin(theta);
@@ -510,7 +530,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return { updateYaw };
   }
 
-  // Inicializar slides 360
+  // Inicializar slides 360°
   slides.forEach((slide, i) => {
     const is360 = slide.getAttribute("data-is-360") === "true";
     const panElem = slide.querySelector(".scrolly-panorama");
@@ -521,8 +541,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  section.style.height = \`\${slideCount * 100}vh\`;
+  // Ajustar altura pinned da seção (100vh por ambiente)
+  section.style.height = \`\${slideCount * 110}vh\`;
 
+  // Timeline com ScrollTrigger de transição contínua em profundidade ("Adentrar")
   const tl = gsap.timeline({
     scrollTrigger: {
       trigger: section,
@@ -538,35 +560,43 @@ document.addEventListener("DOMContentLoaded", () => {
     const caption = slide.querySelector(".scrolly-caption-box");
     const is360 = slide.getAttribute("data-is-360") === "true";
 
+    // 1. EFEITO DE CÂMERA AVANÇANDO (ZOOM EM PROFUNDIDADE 1.0 -> 1.45)
     if (i === 0) {
+      // O primeiro ambiente começa visível e dá o zoom de aproximação ao rolar
       if (media) {
-        tl.to(media, { scale: ${zoomScale}, ease: "power1.inOut" }, 0);
+        tl.to(media, {
+          scale: ${zoomScale},
+          ease: "none"
+        }, 0);
       }
     } else {
+      // Slides subsequentes: surgem do centro como se o visitante atravessasse a porta
       tl.to(slide, {
         autoAlpha: 1,
         duration: 1,
         ease: "power2.out"
-      }, i - 0.2);
+      }, i - 0.35);
 
       if (media) {
+        // Efeito de impulso para frente (começa em 1.3x e aproxima suavemente até 1.0x)
         tl.fromTo(media, 
-          { scale: 1.25 },
-          { scale: 1, duration: 1.2, ease: "power1.out" },
-          i - 0.2
+          { scale: 1.35 },
+          { scale: 1.0, duration: 1.1, ease: "power1.out" },
+          i - 0.35
         );
       }
 
+      // Continuar o zoom para frente antes de passar para o próximo ambiente
       if (i < slideCount - 1 && media) {
         tl.to(media, {
           scale: ${zoomScale},
           duration: 1,
-          ease: "power1.inOut"
-        }, i + 0.5);
+          ease: "none"
+        }, i + 0.4);
       }
     }
 
-    // Se for 360°, rotação panorâmica sincronizada com o scroll
+    // 2. ROTAÇÃO SE FOR PANORAMA 360°
     if (is360 && panViewers[i]) {
       const dummyObj = { yaw: 0 };
       tl.to(dummyObj, {
@@ -576,23 +606,25 @@ document.addEventListener("DOMContentLoaded", () => {
           if (panViewers[i]) panViewers[i].updateYaw(dummyObj.yaw);
         },
         duration: 1.5
-      }, i === 0 ? 0 : i - 0.1);
+      }, i === 0 ? 0 : i - 0.2);
     }
 
+    // 3. ANIMAÇÃO ELEGANTE DA LEGENDA E TÍTULO
     if (caption) {
       tl.fromTo(caption,
-        { opacity: 0, y: 30 },
-        { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" },
-        i === 0 ? 0.1 : i - 0.1
+        { opacity: 0, y: 40, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "power2.out" },
+        i === 0 ? 0.1 : i - 0.15
       );
 
       if (i < slideCount - 1) {
         tl.to(caption, {
           opacity: 0,
-          y: -20,
-          duration: 0.4,
+          y: -30,
+          scale: 0.95,
+          duration: 0.45,
           ease: "power2.in"
-        }, i + 0.6);
+        }, i + 0.55);
       }
     }
   });

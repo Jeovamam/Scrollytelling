@@ -46,35 +46,36 @@ export default function ScrollytellingPreview({ slides, settings }) {
         const caption = slide.querySelector('.preview-caption');
         const is360 = slides[i]?.is360;
 
+        // 1. Efeito de Câmera Avançando (Scale 1.0 -> 1.45 ao adentrar)
         if (i === 0) {
           if (media) {
-            tl.to(media, { scale: zoomScale, ease: 'power1.inOut' }, 0);
+            tl.to(media, { scale: 1.45, ease: 'none' }, 0);
           }
         } else {
           tl.to(slide, {
             autoAlpha: 1,
             duration: 1,
             ease: 'power2.out'
-          }, i - 0.2);
+          }, i - 0.35);
 
           if (media) {
             tl.fromTo(media,
-              { scale: 1.25 },
-              { scale: 1, duration: 1.2, ease: 'power1.out' },
-              i - 0.2
+              { scale: 1.35 },
+              { scale: 1.0, duration: 1.1, ease: 'power1.out' },
+              i - 0.35
             );
           }
 
           if (i < slideElements.length - 1 && media) {
             tl.to(media, {
-              scale: zoomScale,
+              scale: 1.45,
               duration: 1,
-              ease: 'power1.inOut'
-            }, i + 0.5);
+              ease: 'none'
+            }, i + 0.4);
           }
         }
 
-        // Se for slide 360°, animar ângulo de rotação (Yaw) de 0° a 360° conforme o scroll
+        // Se for 360°, rotação panorâmica sincronizada com o scroll
         if (is360) {
           const dummyObj = { yaw: 0 };
           tl.to(dummyObj, {
@@ -84,23 +85,24 @@ export default function ScrollytellingPreview({ slides, settings }) {
             onUpdate: () => {
               setSlideYaws(prev => ({ ...prev, [i]: dummyObj.yaw }));
             }
-          }, i === 0 ? 0 : i - 0.1);
+          }, i === 0 ? 0 : i - 0.2);
         }
 
         if (caption) {
           tl.fromTo(caption,
-            { opacity: 0, y: 30 },
-            { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' },
-            i === 0 ? 0.1 : i - 0.1
+            { opacity: 0, y: 40, scale: 0.95 },
+            { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: 'power2.out' },
+            i === 0 ? 0.1 : i - 0.15
           );
 
           if (i < slideElements.length - 1) {
             tl.to(caption, {
               opacity: 0,
-              y: -20,
-              duration: 0.4,
+              y: -30,
+              scale: 0.95,
+              duration: 0.45,
               ease: 'power2.in'
-            }, i + 0.6);
+            }, i + 0.55);
           }
         }
       });
