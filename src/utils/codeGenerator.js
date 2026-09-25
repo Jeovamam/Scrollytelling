@@ -1,6 +1,6 @@
 /**
  * Generates standalone, production-ready HTML, CSS, and JS code for Scrollytelling.
- * Specialization: Hyper-realistic "Adentrar no Imóvel" + Smooth 360 LERP Damping.
+ * Specialization: Hyper-realistic "Adentrar no Imóvel" + Game-Style Mouse Move 360 Look Around.
  */
 
 export function generateHTML(slides, settings = {}) {
@@ -26,7 +26,7 @@ export function generateHTML(slides, settings = {}) {
         <div id="panorama-${index}" class="scrolly-panorama" data-src="${src}"></div>
         <div class="scrolly-360-badge">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          <span>Visão 360° Interativa (Arraste para girar)</span>
+          <span>Visão 360° (Mova o cursor para olhar os lados)</span>
         </div>`;
     } else if (isVideo) {
       mediaTag = `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`;
@@ -257,10 +257,7 @@ body.scrolly-body {
   height: 100%;
   position: absolute;
   inset: 0;
-  cursor: grab;
-}
-.scrolly-panorama:active {
-  cursor: grabbing;
+  cursor: crosshair;
 }
 .scrolly-panorama canvas {
   width: 100% !important;
@@ -476,7 +473,7 @@ export function generateJS(slides, settings = {}) {
   const slideCount = slides.length;
 
   return `/* ==========================================================================
-   SCROLLYTELLING ENGINE - FLY-THROUGH + SMOOTH 360 LERP DAMPING
+   SCROLLYTELLING ENGINE - FLY-THROUGH + MOUSE HOVER 360 LOOK AROUND (GAME STYLE)
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -489,7 +486,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!section || slideCount === 0) return;
 
-  // Função para inicializar o visualizador 360 com amortecimento LERP ultra-suave
+  // Função para inicializar o visualizador 360 estilo jogos (Mouse Move / Hover Look-Around)
   function createThree360Viewer(container, imageSrc) {
     if (!window.THREE || !container) return null;
     const w = container.clientWidth || window.innerWidth;
@@ -515,9 +512,10 @@ document.addEventListener("DOMContentLoaded", () => {
       scene.add(mesh);
     });
 
-    // Estado da interação e amortecimento LERP
     let targetYaw = 0;
     let targetPitch = 0;
+    let hoverYawOffset = 0;
+    let hoverPitchOffset = 0;
     let currentLon = 0;
     let currentLat = 0;
     let isUserInteracting = false;
@@ -525,6 +523,16 @@ document.addEventListener("DOMContentLoaded", () => {
     let onPointerDownMouseY = 0;
     let onPointerDownLon = 0;
     let onPointerDownLat = 0;
+
+    // Movimento do mouse sem clicar (estilo jogos)
+    container.addEventListener("mousemove", (e) => {
+      if (isUserInteracting) return;
+      const rect = container.getBoundingClientRect();
+      const normX = ((e.clientX - rect.left) / rect.width) - 0.5;
+      const normY = ((e.clientY - rect.top) / rect.height) - 0.5;
+      hoverYawOffset = normX * 90;
+      hoverPitchOffset = -normY * 40;
+    });
 
     const onPointerDown = (event) => {
       isUserInteracting = true;
@@ -562,9 +570,10 @@ document.addEventListener("DOMContentLoaded", () => {
       requestAnimationFrame(animate);
 
       if (!isUserInteracting) {
-        // Amortecimento LERP suave a 5% por frame (sem retorno abrupto ao soltar)
-        currentLon += (targetYaw - currentLon) * 0.05;
-        currentLat += (targetPitch - currentLat) * 0.05;
+        const destLon = targetYaw + hoverYawOffset;
+        const destLat = targetPitch + hoverPitchOffset;
+        currentLon += (destLon - currentLon) * 0.06;
+        currentLat += (destLat - currentLat) * 0.06;
       }
 
       const phi = THREE.MathUtils.degToRad(90 - currentLat);
