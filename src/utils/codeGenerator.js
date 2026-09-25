@@ -1,6 +1,6 @@
 /**
  * Generates standalone, production-ready HTML, CSS, and JS code for Scrollytelling.
- * Specialization: Hyper-realistic "Adentrar no Imóvel" (Property Fly-Through Walkthrough).
+ * Specialization: Hyper-realistic "Adentrar no Imóvel" + Smooth 360 LERP Damping.
  */
 
 export function generateHTML(slides, settings = {}) {
@@ -10,15 +10,23 @@ export function generateHTML(slides, settings = {}) {
   const slidesMarkup = slides.map((slide, index) => {
     const isVideo = slide.type === 'video' || slide.file?.type?.startsWith('video/');
     const is360 = !!slide.is360;
+    const isCanvasSeq = !!slide.isCanvasSequence;
     const src = slide.fileName ? `assets/${slide.fileName}` : slide.url;
     
     let mediaTag = '';
-    if (is360) {
+    if (isCanvasSeq) {
+      mediaTag = `
+        <canvas id="canvas-seq-${index}" class="scrolly-canvas-seq" data-frames-dir="assets/frames_slide_${index + 1}"></canvas>
+        <div class="scrolly-360-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
+          <span>Sequência Canvas 60fps</span>
+        </div>`;
+    } else if (is360) {
       mediaTag = `
         <div id="panorama-${index}" class="scrolly-panorama" data-src="${src}"></div>
         <div class="scrolly-360-badge">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          <span>Ambiente 360° Interativo (Arraste para girar)</span>
+          <span>Visão 360° Interativa (Arraste para girar)</span>
         </div>`;
     } else if (isVideo) {
       mediaTag = `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`;
@@ -31,7 +39,7 @@ export function generateHTML(slides, settings = {}) {
 
     return `
       <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} -->
-      <div class="scrolly-slide" data-slide-index="${index}" data-is-360="${is360}">
+      <div class="scrolly-slide" data-slide-index="${index}" data-is-360="${is360}" data-is-canvas="${isCanvasSeq}">
         <div class="scrolly-media-wrapper">
           ${mediaTag}
           <div class="scrolly-overlay"></div>
@@ -74,14 +82,14 @@ export function generateHTML(slides, settings = {}) {
     </div>
   </header>
 
-  <!-- SEÇÃO DE SCROLLYTELLING (EFEITO ADENTRANDO NO IMÓVEL) -->
+  <!-- SEÇÃO DE SCROLLYTELLING -->
   <section class="scrollytelling-section" id="tour-virtual">
     <div class="scrollytelling-sticky-viewport">
       <div class="scrollytelling-slides-wrapper">
         ${slidesMarkup}
       </div>
       
-      <!-- Indicador de Navegação em Profundidade -->
+      <!-- Indicador de Navegação -->
       <div class="scrolly-scroll-hint">
         <div class="mouse-icon"></div>
         <small>Role para avançar e adentrar nos ambientes</small>
@@ -203,7 +211,7 @@ body.scrolly-body {
   height: 100%;
 }
 
-/* Slide individual com efeito de profundidade Z-Axis Travel */
+/* Slide individual */
 .scrolly-slide {
   position: absolute;
   top: 0;
@@ -233,14 +241,14 @@ body.scrolly-body {
   transform-origin: center center;
 }
 
-.scrolly-media {
+.scrolly-media, .scrolly-canvas-seq {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
   transform: scale(1);
   will-change: transform, filter;
-  transition: filter 0.3s ease;
+  display: block;
 }
 
 /* Panorama 360° Viewer */
@@ -249,6 +257,10 @@ body.scrolly-body {
   height: 100%;
   position: absolute;
   inset: 0;
+  cursor: grab;
+}
+.scrolly-panorama:active {
+  cursor: grabbing;
 }
 .scrolly-panorama canvas {
   width: 100% !important;
@@ -464,8 +476,7 @@ export function generateJS(slides, settings = {}) {
   const slideCount = slides.length;
 
   return `/* ==========================================================================
-   SCROLLYTELLING ENGINE - EFEITO "ADENTRANDO NO IMÓVEL" (CAMERA FLY-THROUGH)
-   Simula a sensação contínua de caminhar para dentro dos ambientes do imóvel.
+   SCROLLYTELLING ENGINE - FLY-THROUGH + SMOOTH 360 LERP DAMPING
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -478,7 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!section || slideCount === 0) return;
 
-  // Função para inicializar o visualizador 360 com Three.js
+  // Função para inicializar o visualizador 360 com amortecimento LERP ultra-suave
   function createThree360Viewer(container, imageSrc) {
     if (!window.THREE || !container) return null;
     const w = container.clientWidth || window.innerWidth;
@@ -488,7 +499,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
     camera.position.set(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
@@ -504,17 +515,64 @@ document.addEventListener("DOMContentLoaded", () => {
       scene.add(mesh);
     });
 
+    // Estado da interação e amortecimento LERP
+    let targetYaw = 0;
+    let targetPitch = 0;
+    let currentLon = 0;
+    let currentLat = 0;
+    let isUserInteracting = false;
+    let onPointerDownMouseX = 0;
+    let onPointerDownMouseY = 0;
+    let onPointerDownLon = 0;
+    let onPointerDownLat = 0;
+
+    const onPointerDown = (event) => {
+      isUserInteracting = true;
+      const clientX = event.clientX || (event.touches && event.touches[0].clientX) || 0;
+      const clientY = event.clientY || (event.touches && event.touches[0].clientY) || 0;
+      onPointerDownMouseX = clientX;
+      onPointerDownMouseY = clientY;
+      onPointerDownLon = currentLon;
+      onPointerDownLat = currentLat;
+    };
+
+    const onPointerMove = (event) => {
+      if (!isUserInteracting) return;
+      const clientX = event.clientX || (event.touches && event.touches[0].clientX) || 0;
+      const clientY = event.clientY || (event.touches && event.touches[0].clientY) || 0;
+      currentLon = (onPointerDownMouseX - clientX) * 0.15 + onPointerDownLon;
+      currentLat = (clientY - onPointerDownMouseY) * 0.15 + onPointerDownLat;
+      currentLat = Math.max(-85, Math.min(85, currentLat));
+    };
+
+    const onPointerUp = () => {
+      isUserInteracting = false;
+    };
+
+    const domElement = renderer.domElement;
+    domElement.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
     function updateYaw(newYaw) {
-      const phi = THREE.MathUtils.degToRad(90);
-      const theta = THREE.MathUtils.degToRad(newYaw);
-      const targetX = 500 * Math.sin(phi) * Math.cos(theta);
-      const targetY = 500 * Math.cos(phi);
-      const targetZ = 500 * Math.sin(phi) * Math.sin(theta);
-      camera.lookAt(targetX, targetY, targetZ);
+      targetYaw = newYaw;
     }
 
     function animate() {
       requestAnimationFrame(animate);
+
+      if (!isUserInteracting) {
+        // Amortecimento LERP suave a 5% por frame (sem retorno abrupto ao soltar)
+        currentLon += (targetYaw - currentLon) * 0.05;
+        currentLat += (targetPitch - currentLat) * 0.05;
+      }
+
+      const phi = THREE.MathUtils.degToRad(90 - currentLat);
+      const theta = THREE.MathUtils.degToRad(currentLon);
+      const targetX = 500 * Math.sin(phi) * Math.cos(theta);
+      const targetY = 500 * Math.cos(phi);
+      const targetZ = 500 * Math.sin(phi) * Math.sin(theta);
+      camera.lookAt(targetX, targetY, targetZ);
       renderer.render(scene, camera);
     }
     animate();
@@ -541,10 +599,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Ajustar altura pinned da seção (100vh por ambiente)
   section.style.height = \`\${slideCount * 110}vh\`;
 
-  // Timeline com ScrollTrigger de transição contínua em profundidade ("Adentrar")
   const tl = gsap.timeline({
     scrollTrigger: {
       trigger: section,
@@ -560,17 +616,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const caption = slide.querySelector(".scrolly-caption-box");
     const is360 = slide.getAttribute("data-is-360") === "true";
 
-    // 1. EFEITO DE CÂMERA AVANÇANDO (ZOOM EM PROFUNDIDADE 1.0 -> 1.45)
     if (i === 0) {
-      // O primeiro ambiente começa visível e dá o zoom de aproximação ao rolar
       if (media) {
-        tl.to(media, {
-          scale: ${zoomScale},
-          ease: "none"
-        }, 0);
+        tl.to(media, { scale: ${zoomScale}, ease: "none" }, 0);
       }
     } else {
-      // Slides subsequentes: surgem do centro como se o visitante atravessasse a porta
       tl.to(slide, {
         autoAlpha: 1,
         duration: 1,
@@ -578,7 +628,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }, i - 0.35);
 
       if (media) {
-        // Efeito de impulso para frente (começa em 1.3x e aproxima suavemente até 1.0x)
         tl.fromTo(media, 
           { scale: 1.35 },
           { scale: 1.0, duration: 1.1, ease: "power1.out" },
@@ -586,7 +635,6 @@ document.addEventListener("DOMContentLoaded", () => {
         );
       }
 
-      // Continuar o zoom para frente antes de passar para o próximo ambiente
       if (i < slideCount - 1 && media) {
         tl.to(media, {
           scale: ${zoomScale},
@@ -596,7 +644,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // 2. ROTAÇÃO SE FOR PANORAMA 360°
     if (is360 && panViewers[i]) {
       const dummyObj = { yaw: 0 };
       tl.to(dummyObj, {
@@ -609,7 +656,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }, i === 0 ? 0 : i - 0.2);
     }
 
-    // 3. ANIMAÇÃO ELEGANTE DA LEGENDA E TÍTULO
     if (caption) {
       tl.fromTo(caption,
         { opacity: 0, y: 40, scale: 0.95 },

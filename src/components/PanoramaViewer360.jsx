@@ -31,14 +31,13 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
 
     // Texture Loader
     const textureLoader = new THREE.TextureLoader();
-    let mesh = null;
 
     textureLoader.load(
       url,
       (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
         const material = new THREE.MeshBasicMaterial({ map: texture });
-        mesh = new THREE.Mesh(geometry, material);
+        const mesh = new THREE.Mesh(geometry, material);
         scene.add(mesh);
       },
       undefined,
@@ -47,7 +46,7 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
       }
     );
 
-    // Interaction controls
+    // Interaction controls & Inertia/LERP state
     let isUserInteracting = false;
     let onPointerDownMouseX = 0;
     let onPointerDownMouseY = 0;
@@ -85,13 +84,15 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
 
-    // Animation Loop
+    // Animation Loop with LERP Smooth Damping
     let animationFrameId;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
 
       if (!isUserInteracting) {
-        lon = yaw;
+        // Softly interpolate (LERP) current camera angles back towards target scroll yaw & pitch
+        lon += (yaw - lon) * 0.05; // 5% smooth easing factor (no abrupt snap!)
+        lat += (pitch - lat) * 0.05;
       }
 
       const phi = THREE.MathUtils.degToRad(90 - lat);
@@ -133,7 +134,7 @@ export default function PanoramaViewer360({ url, yaw = 0, pitch = 0, interactive
       renderer.dispose();
       geometry.dispose();
     };
-  }, [url, interactive]);
+  }, [url, interactive, yaw, pitch]);
 
   return (
     <div
