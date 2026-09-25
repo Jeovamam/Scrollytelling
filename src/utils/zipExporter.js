@@ -19,16 +19,16 @@ export async function exportToZip(slides, settings = {}, onProgress) {
   zip.file('index.html', htmlContent);
   zip.file('styles.css', cssContent);
   zip.file('script.js', jsContent);
-  zip.file('README.md', `# Tour Virtual Scrollytelling
+  zip.file('README.md', `# Tour Virtual Scrollytelling (Landing Page)
 
 Este pacote foi gerado pelo **Scrollytelling Builder**.
 
 ## Como utilizar na sua Landing Page:
 
 1. Extraia o conteúdo deste arquivo .zip para a pasta do seu projeto.
-2. Abra o arquivo \`index.html\` no seu navegador ou integre as seções no seu framework (React, HTML5, Webflow, WordPress, etc.).
-3. A pasta \`assets/\` contém todas as imagens e vídeos organizados na sequência correta.
-4. O efeito de rolagem utiliza GSAP ScrollTrigger via CDN oficial.
+2. Abra o arquivo \`index.html\` no seu navegador ou integre a seção de Scrollytelling na sua Landing Page (WordPress, Webflow, React, HTML5, etc.).
+3. A pasta \`assets/\` contém todas as imagens, sequências de quadros de vídeo (estilo Apple) e mídias 360°.
+4. O efeito de rolagem utiliza GSAP ScrollTrigger via CDN oficial para máxima leveza e fluidez a 60fps.
 `);
 
   // 2. Fetch and add media assets
@@ -37,28 +37,37 @@ Este pacote foi gerado pelo **Scrollytelling Builder**.
     const slide = slides[i];
     if (onProgress) onProgress(`Empacotando mídias (${i + 1}/${total})...`);
 
-    const fileName = slide.fileName || `slide-${i + 1}.${slide.type === 'video' ? 'mp4' : 'jpg'}`;
+    if (slide.isCanvasSequence && slide.sequenceData?.frames) {
+      const framesFolder = assetsFolder.folder(`frames_slide_${i + 1}`);
+      const frames = slide.sequenceData.frames;
 
-    try {
-      if (slide.file) {
-        // Blob from drag & drop
-        assetsFolder.file(fileName, slide.file);
-      } else if (slide.url) {
-        // Remote URL (like presets)
-        const response = await fetch(slide.url);
-        if (response.ok) {
-          const blob = await response.blob();
-          assetsFolder.file(fileName, blob);
+      for (let f = 0; f < frames.length; f++) {
+        const frame = frames[f];
+        if (frame.blob) {
+          framesFolder.file(frame.fileName, frame.blob);
         }
       }
-    } catch (err) {
-      console.warn(`Aviso ao baixar mídia ${fileName}:`, err);
+    } else {
+      const fileName = slide.fileName || `slide-${i + 1}.${slide.type === 'video' ? 'mp4' : 'jpg'}`;
+
+      try {
+        if (slide.file) {
+          assetsFolder.file(fileName, slide.file);
+        } else if (slide.url) {
+          const response = await fetch(slide.url);
+          if (response.ok) {
+            const blob = await response.blob();
+            assetsFolder.file(fileName, blob);
+          }
+        }
+      } catch (err) {
+        console.warn(`Aviso ao baixar mídia ${fileName}:`, err);
+      }
     }
   }
 
   if (onProgress) onProgress('Finalizando arquivo .zip...');
 
-  // 3. Generate zip blob and save
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   saveAs(zipBlob, 'scrollytelling-landing-page.zip');
 }

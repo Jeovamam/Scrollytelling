@@ -4,11 +4,14 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Monitor, Tablet, Smartphone, Eye, Sparkles } from 'lucide-react';
 import PanoramaViewer360 from './PanoramaViewer360';
 
+import CanvasSequenceViewer from './CanvasSequenceViewer';
+
 gsap.registerPlugin(ScrollTrigger);
 
 export default function ScrollytellingPreview({ slides, settings }) {
   const [deviceMode, setDeviceMode] = useState('desktop'); // 'desktop', 'tablet', 'mobile'
   const [slideYaws, setSlideYaws] = useState({});
+  const [canvasFrameIndices, setCanvasFrameIndices] = useState({});
   const containerRef = useRef(null);
   const scrollableRef = useRef(null);
 
@@ -45,6 +48,8 @@ export default function ScrollytellingPreview({ slides, settings }) {
         const media = slide.querySelector('.preview-media:not(canvas)');
         const caption = slide.querySelector('.preview-caption');
         const is360 = slides[i]?.is360;
+        const isCanvasSequence = slides[i]?.isCanvasSequence;
+        const totalFrames = slides[i]?.sequenceData?.totalFrames || 0;
 
         // 1. Efeito de Câmera Avançando (Scale 1.0 -> 1.45 ao adentrar)
         if (i === 0) {
@@ -73,6 +78,20 @@ export default function ScrollytellingPreview({ slides, settings }) {
               ease: 'none'
             }, i + 0.4);
           }
+        }
+
+        // Se for sequência de quadros Canvas (Apple-Style)
+        if (isCanvasSequence && totalFrames > 0) {
+          const dummyFrameObj = { frame: 0 };
+          tl.to(dummyFrameObj, {
+            frame: totalFrames - 1,
+            duration: 1.5,
+            ease: 'none',
+            onUpdate: () => {
+              const currentIdx = Math.round(dummyFrameObj.frame);
+              setCanvasFrameIndices(prev => ({ ...prev, [i]: currentIdx }));
+            }
+          }, i === 0 ? 0 : i - 0.2);
         }
 
         // Se for 360°, rotação panorâmica sincronizada com o scroll
@@ -199,9 +218,20 @@ export default function ScrollytellingPreview({ slides, settings }) {
                           key={slide.id}
                           className={`preview-slide absolute inset-0 w-full h-full flex items-center justify-center ${index === 0 ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
                         >
-                          {/* Media Container (2D, Video ou WebGL 360°) */}
+                          {/* Media Container (2D, Video, Canvas Sequence ou WebGL 360°) */}
                           <div className="absolute inset-0 w-full h-full overflow-hidden">
-                            {slide.is360 ? (
+                            {slide.isCanvasSequence ? (
+                              <div className="relative w-full h-full bg-slate-950">
+                                <CanvasSequenceViewer
+                                  frames={slide.sequenceData?.frames || []}
+                                  currentFrameIndex={canvasFrameIndices[index] || 0}
+                                />
+                                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg pointer-events-none">
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Canvas Sequence 60fps (Estilo Apple)</span>
+                                </div>
+                              </div>
+                            ) : slide.is360 ? (
                               <div className="relative w-full h-full bg-slate-950 overflow-hidden">
                                 <PanoramaViewer360
                                   url={slide.url}

@@ -11,7 +11,9 @@ import {
   Type,
   Layout,
   Sliders,
-  RotateCcw
+  RotateCcw,
+  Check,
+  Loader2
 } from 'lucide-react';
 
 export default function UploadPanel({ 
@@ -303,6 +305,66 @@ export default function UploadPanel({
                         <Sparkles className="w-3 h-3" />
                         Visão 360° Ativa
                       </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Opção de Sequência Canvas (para vídeos) */}
+                {slide.type === 'video' && (
+                  <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                        <Film className="w-3.5 h-3.5 text-sky-400" />
+                        Modo Canvas Sequence (Estilo Apple)
+                      </span>
+                      {slide.isCanvasSequence ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          {slide.sequenceData?.totalFrames || 0} Quadros Extraídos
+                        </span>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            updateSlide(slide.id, 'extracting', true);
+                            try {
+                              const result = await extractFramesFromVideo(
+                                slide.file || slide.url,
+                                { fps: 15, maxFrames: 60, maxWidth: 1280 },
+                                (pct) => updateSlide(slide.id, 'extractProgress', pct)
+                              );
+                              updateSlide(slide.id, 'isCanvasSequence', true);
+                              updateSlide(slide.id, 'sequenceData', result);
+                            } catch (err) {
+                              alert(err.message || 'Erro ao converter vídeo.');
+                            } finally {
+                              updateSlide(slide.id, 'extracting', false);
+                            }
+                          }}
+                          disabled={slide.extracting}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded transition flex items-center gap-1"
+                        >
+                          {slide.extracting ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Convertendo {slide.extractProgress || 0}%
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3 h-3" />
+                              Gerar Sequência 60fps
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    {slide.extracting && (
+                      <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                        <div
+                          className="bg-gradient-to-r from-sky-500 to-emerald-400 h-full transition-all duration-200"
+                          style={{ width: `${slide.extractProgress || 0}%` }}
+                        />
+                      </div>
                     )}
                   </div>
                 )}
