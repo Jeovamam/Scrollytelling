@@ -1,6 +1,6 @@
 /**
  * Generates standalone, production-ready HTML, CSS, and JS code for Scrollytelling.
- * Supports standard images, short videos, and 360-degree equirectangular panoramas!
+ * Supports standard 2D images, short videos, and TRUE 360-degree Equirectangular WebGL Panoramas!
  */
 
 export function generateHTML(slides, settings = {}) {
@@ -18,7 +18,7 @@ export function generateHTML(slides, settings = {}) {
         <div id="panorama-${index}" class="scrolly-panorama" data-src="${src}"></div>
         <div class="scrolly-360-badge">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          <span>Ambiente 360° Interativo (Arraste para girar)</span>
+          <span>Visão 360° Interativa (Arraste para girar)</span>
         </div>`;
     } else if (isVideo) {
       mediaTag = `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`;
@@ -30,7 +30,7 @@ export function generateHTML(slides, settings = {}) {
     const themeClass = `theme-${slide.overlayTheme || 'dark'}`;
 
     return `
-      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} ${is360 ? '(360° Panorama)' : ''} -->
+      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} ${is360 ? '(Equirretangular 360° WebGL)' : ''} -->
       <div class="scrolly-slide" data-slide-index="${index}" data-is-360="${is360}">
         <div class="scrolly-media-wrapper">
           ${mediaTag}
@@ -42,7 +42,7 @@ export function generateHTML(slides, settings = {}) {
           ${slide.caption ? `<p class="scrolly-desc">${escapeHtml(slide.caption)}</p>` : ''}
           <div class="scrolly-badge">
             <span>${String(index + 1).padStart(2, '0')}</span> / ${String(slides.length).padStart(2, '0')}
-            ${is360 ? ' &bull; VISÃO 360°' : ''}
+            ${is360 ? ' &bull; PANORAMA 360°' : ''}
           </div>
         </div>` : ''}
       </div>`;
@@ -59,9 +59,6 @@ export function generateHTML(slides, settings = {}) {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  ${has360 ? `
-  <!-- Pannellum 360° Panorama Viewer CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>` : ''}
   
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -102,8 +99,8 @@ export function generateHTML(slides, settings = {}) {
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
   ${has360 ? `
-  <!-- Pannellum 360° Panorama Viewer JS -->
-  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>` : ''}
+  <!-- Three.js CDN para Projeção Esférica 360° -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>` : ''}
   <script src="script.js"></script>
 </body>
 </html>`;
@@ -113,7 +110,7 @@ export function generateCSS(settings = {}) {
   const { zoomScale = 1.18 } = settings;
 
   return `/* ==========================================================================
-   SCROLLYTELLING STYLES - SUPORTE 2D, VÍDEO E PANORAMA 360°
+   SCROLLYTELLING STYLES - SUPORTE 2D, VÍDEO E PROJEÇÃO ESFÉRICA 360° WEBGL
    ========================================================================== */
 
 :root {
@@ -243,6 +240,11 @@ body.scrolly-body {
   height: 100%;
   position: absolute;
   inset: 0;
+}
+.scrolly-panorama canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
 }
 
 .scrolly-360-badge {
@@ -440,7 +442,7 @@ export function generateJS(slides, settings = {}) {
   const slideCount = slides.length;
 
   return `/* ==========================================================================
-   SCROLLYTELLING ENGINE (GSAP + ScrollTrigger + Pannellum 360)
+   SCROLLYTELLING ENGINE (GSAP + ScrollTrigger + Three.js 360 WebGL Sphere)
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -453,22 +455,69 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (!section || slideCount === 0) return;
 
-  // Inicializar Panoramas 360 se houver Pannellum disponível
+  // Função para inicializar o visualizador de esfera 360° equirretangular com Three.js
+  function createThree360Viewer(container, imageSrc) {
+    if (!window.THREE || !container) return null;
+    const w = container.clientWidth || window.innerWidth;
+    const h = container.clientHeight || window.innerHeight;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
+    camera.position.set(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Criar geometria esférica e inverter normais para a câmera ficar no centro
+    const geometry = new THREE.SphereGeometry(500, 60, 40);
+    geometry.scale(-1, 1, 1);
+
+    const loader = new THREE.TextureLoader();
+    loader.load(imageSrc, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.MeshBasicMaterial({ map: texture });
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+    });
+
+    let currentYaw = 0;
+    function updateYaw(newYaw) {
+      currentYaw = newYaw;
+      const phi = THREE.MathUtils.degToRad(90);
+      const theta = THREE.MathUtils.degToRad(currentYaw);
+      const targetX = 500 * Math.sin(phi) * Math.cos(theta);
+      const targetY = 500 * Math.cos(phi);
+      const targetZ = 500 * Math.sin(phi) * Math.sin(theta);
+      camera.lookAt(targetX, targetY, targetZ);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener("resize", () => {
+      const rw = container.clientWidth || window.innerWidth;
+      const rh = container.clientHeight || window.innerHeight;
+      camera.aspect = rw / rh;
+      camera.updateProjectionMatrix();
+      renderer.setSize(rw, rh);
+    });
+
+    return { updateYaw };
+  }
+
+  // Inicializar slides 360
   slides.forEach((slide, i) => {
     const is360 = slide.getAttribute("data-is-360") === "true";
     const panElem = slide.querySelector(".scrolly-panorama");
 
-    if (is360 && panElem && window.pannellum) {
+    if (is360 && panElem) {
       const src = panElem.getAttribute("data-src");
-      panViewers[i] = pannellum.viewer(\`panorama-\${i}\`, {
-        type: "equirectangular",
-        panorama: src,
-        autoLoad: true,
-        showControls: false,
-        haov: 120,
-        vaov: 75,
-        hfov: 100
-      });
+      panViewers[i] = createThree360Viewer(panElem, src);
     }
   });
 
@@ -519,14 +568,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Se for 360°, rotação panorâmica sincronizada com o scroll
     if (is360 && panViewers[i]) {
-      tl.to({}, {
+      const dummyObj = { yaw: 0 };
+      tl.to(dummyObj, {
+        yaw: 360,
+        ease: "none",
         onUpdate: function () {
-          const progress = this.progress();
-          const yawAngle = -180 + (progress * 360); // Gira 360 graus na horizontal
-          if (panViewers[i]) panViewers[i].setYaw(yawAngle, false);
+          if (panViewers[i]) panViewers[i].updateYaw(dummyObj.yaw);
         },
         duration: 1.5
-      }, i - 0.1);
+      }, i === 0 ? 0 : i - 0.1);
     }
 
     if (caption) {

@@ -2,11 +2,13 @@ import React, { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Monitor, Tablet, Smartphone, Eye, Sparkles } from 'lucide-react';
+import PanoramaViewer360 from './PanoramaViewer360';
 
 gsap.registerPlugin(ScrollTrigger);
 
 export default function ScrollytellingPreview({ slides, settings }) {
   const [deviceMode, setDeviceMode] = useState('desktop'); // 'desktop', 'tablet', 'mobile'
+  const [slideYaws, setSlideYaws] = useState({});
   const containerRef = useRef(null);
   const scrollableRef = useRef(null);
 
@@ -20,7 +22,6 @@ export default function ScrollytellingPreview({ slides, settings }) {
       const slideElements = gsap.utils.toArray('.preview-slide', scrollableRef.current);
       if (slideElements.length === 0) return;
 
-      // Clean old ScrollTriggers
       ScrollTrigger.getAll().forEach(t => t.kill());
 
       const totalHeight = slideElements.length * 100;
@@ -41,15 +42,13 @@ export default function ScrollytellingPreview({ slides, settings }) {
       });
 
       slideElements.forEach((slide, i) => {
-        const media = slide.querySelector('.preview-media');
+        const media = slide.querySelector('.preview-media:not(canvas)');
         const caption = slide.querySelector('.preview-caption');
+        const is360 = slides[i]?.is360;
 
         if (i === 0) {
           if (media) {
-            tl.to(media, {
-              scale: zoomScale,
-              ease: 'power1.inOut'
-            }, 0);
+            tl.to(media, { scale: zoomScale, ease: 'power1.inOut' }, 0);
           }
         } else {
           tl.to(slide, {
@@ -73,6 +72,19 @@ export default function ScrollytellingPreview({ slides, settings }) {
               ease: 'power1.inOut'
             }, i + 0.5);
           }
+        }
+
+        // Se for slide 360°, animar ângulo de rotação (Yaw) de 0° a 360° conforme o scroll
+        if (is360) {
+          const dummyObj = { yaw: 0 };
+          tl.to(dummyObj, {
+            yaw: 360,
+            duration: 1.5,
+            ease: 'none',
+            onUpdate: () => {
+              setSlideYaws(prev => ({ ...prev, [i]: dummyObj.yaw }));
+            }
+          }, i === 0 ? 0 : i - 0.1);
         }
 
         if (caption) {
@@ -110,7 +122,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
         <div className="flex items-center gap-2">
           <Eye className="w-4 h-4 text-emerald-400" />
           <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
-            Pré-visualização Interativa (Scroll Real)
+            Pré-visualização Interativa (Scroll & WebGL 360°)
           </span>
         </div>
 
@@ -185,14 +197,18 @@ export default function ScrollytellingPreview({ slides, settings }) {
                           key={slide.id}
                           className={`preview-slide absolute inset-0 w-full h-full flex items-center justify-center ${index === 0 ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
                         >
-                          {/* Media (2D, Vídeo ou 360) */}
+                          {/* Media Container (2D, Video ou WebGL 360°) */}
                           <div className="absolute inset-0 w-full h-full overflow-hidden">
                             {slide.is360 ? (
-                              <div className="relative w-full h-full bg-slate-900 overflow-hidden flex items-center justify-center">
-                                <img src={slide.url} alt={slide.title} className="preview-media w-full h-full object-cover scale-105 filter brightness-90" />
-                                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-amber-500/20 border border-amber-500/40 text-amber-300 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
+                              <div className="relative w-full h-full bg-slate-950 overflow-hidden">
+                                <PanoramaViewer360
+                                  url={slide.url}
+                                  yaw={slideYaws[index] || 0}
+                                  interactive={true}
+                                />
+                                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-amber-500/20 border border-amber-500/40 text-amber-300 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg pointer-events-none">
                                   <Sparkles className="w-3.5 h-3.5" />
-                                  <span>Ambiente 360° Interativo</span>
+                                  <span>Visualizador Esférico 360° (Arraste para explorar)</span>
                                 </div>
                               </div>
                             ) : slide.type === 'video' ? (
@@ -218,6 +234,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
                               )}
                               <div className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 uppercase tracking-widest">
                                 <span>{String(index + 1).padStart(2, '0')}</span> / {String(slides.length).padStart(2, '0')}
+                                {slide.is360 && ' • VISÃO 360°'}
                               </div>
                             </div>
                           )}
@@ -230,7 +247,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
                       <div className="w-5 h-8 border-2 border-white/60 rounded-full relative">
                         <div className="w-1 h-2 bg-white rounded-full absolute top-1.5 left-1/2 -translate-x-1/2 animate-bounce" />
                       </div>
-                      <span className="text-[10px] text-white/80 font-medium tracking-wider uppercase">Role para baixo</span>
+                      <span className="text-[10px] text-white/80 font-medium tracking-wider uppercase">Role para explorar</span>
                     </div>
                   </div>
                 </div>
