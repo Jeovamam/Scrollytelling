@@ -1,6 +1,6 @@
 /**
  * Generates standalone, production-ready HTML, CSS, and JS code for Scrollytelling.
- * Specialization: Hyper-realistic "Adentrar no Imóvel" + Isolated 2-Finger Scroll vs 1-Finger 360 Look Around.
+ * Specialization: Hyper-realistic "Adentrar no Imóvel" + Stable 360 Camera (No spin on 2-finger scroll).
  */
 
 export function generateHTML(slides, settings = {}) {
@@ -473,7 +473,7 @@ export function generateJS(slides, settings = {}) {
   const slideCount = slides.length;
 
   return `/* ==========================================================================
-   SCROLLYTELLING ENGINE - FLY-THROUGH + ISOLATED 2-FINGER SCROLL & 1-FINGER 360 HOVER
+   SCROLLYTELLING ENGINE - FLY-THROUGH (NO ROTATION ON 2-FINGER SCROLL)
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -526,7 +526,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let onPointerDownLon = 0;
     let onPointerDownLat = 0;
 
-    // Detectar rolagem de 2 dedos (wheel) para congelar os desvios da câmera enquanto avança/retrocede
+    // Detectar rolagem com 2 dedos para congelar giros e avançar reto
     window.addEventListener("wheel", () => {
       isScrolling = true;
       clearTimeout(scrollTimeout);
@@ -535,7 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 180);
     }, { passive: true });
 
-    // Movimento com 1 dedo / cursor (olhar em volta) com Deadzone e Limite
+    // Movimento com 1 dedo (olhar em volta) com Deadzone e Limite
     container.addEventListener("mousemove", (e) => {
       if (isUserInteracting || isScrolling) return;
       const rect = container.getBoundingClientRect();
@@ -585,7 +585,6 @@ document.addEventListener("DOMContentLoaded", () => {
       requestAnimationFrame(animate);
 
       if (!isUserInteracting) {
-        // Durante o scroll de 2 dedos, zerar desvios para o avanço/recuo ser 100% reto
         const targetHoverYaw = isScrolling ? 0 : hoverYawOffset;
         const targetHoverPitch = isScrolling ? 0 : hoverPitchOffset;
 
@@ -642,7 +641,6 @@ document.addEventListener("DOMContentLoaded", () => {
   slides.forEach((slide, i) => {
     const media = slide.querySelector(".scrolly-media");
     const caption = slide.querySelector(".scrolly-caption-box");
-    const is360 = slide.getAttribute("data-is-360") === "true";
 
     if (i === 0) {
       if (media) {
@@ -670,18 +668,6 @@ document.addEventListener("DOMContentLoaded", () => {
           ease: "none"
         }, i + 0.4);
       }
-    }
-
-    if (is360 && panViewers[i]) {
-      const dummyObj = { yaw: 0 };
-      tl.to(dummyObj, {
-        yaw: 360,
-        ease: "none",
-        onUpdate: function () {
-          if (panViewers[i]) panViewers[i].updateYaw(dummyObj.yaw);
-        },
-        duration: 1.5
-      }, i === 0 ? 0 : i - 0.2);
     }
 
     if (caption) {

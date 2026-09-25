@@ -94,17 +94,9 @@ export default function ScrollytellingPreview({ slides, settings }) {
           }, i === 0 ? 0 : i - 0.2);
         }
 
-        // Se for 360°, rotação panorâmica sincronizada com o scroll
+        // Se for 360°, manter o ângulo base estável durante o scroll (sem giros automáticos descontrolados)
         if (is360) {
-          const dummyObj = { yaw: 0 };
-          tl.to(dummyObj, {
-            yaw: 360,
-            duration: 1.5,
-            ease: 'none',
-            onUpdate: () => {
-              setSlideYaws(prev => ({ ...prev, [i]: dummyObj.yaw }));
-            }
-          }, i === 0 ? 0 : i - 0.2);
+          setSlideYaws(prev => ({ ...prev, [i]: 0 }));
         }
 
         if (caption) {
