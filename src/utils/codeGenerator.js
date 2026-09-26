@@ -575,9 +575,17 @@ document.addEventListener("DOMContentLoaded", () => {
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
 
+      let targetFrame = 0;
+      let currentFrame = 0;
+      let lastDrawnFrame = -1;
+
+      function setTargetFrame(frameIdx) {
+        targetFrame = Math.max(0, Math.min(frameIdx, totalFrames - 1));
+      }
+
       function drawFrame(frameIdx) {
         const img = images[Math.max(0, Math.min(frameIdx, images.length - 1))];
-        if (!img || !img.complete) return;
+        if (!img || (!img.complete && img.naturalWidth === 0)) return;
         const cw = canvas.width;
         const ch = canvas.height;
         const iw = img.naturalWidth || 1280;
@@ -589,7 +597,23 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx2d.drawImage(img, (cw - nw) / 2, (ch - nh) / 2, nw, nh);
       }
 
-      canvasSequences[i] = { drawFrame, totalFrames };
+      function loopRAF() {
+        const diff = targetFrame - currentFrame;
+        if (Math.abs(diff) > 0.001) {
+          currentFrame += diff * 0.22;
+        } else {
+          currentFrame = targetFrame;
+        }
+        const frameToDraw = Math.round(currentFrame);
+        if (frameToDraw !== lastDrawnFrame) {
+          drawFrame(frameToDraw);
+          lastDrawnFrame = frameToDraw;
+        }
+        requestAnimationFrame(loopRAF);
+      }
+      requestAnimationFrame(loopRAF);
+
+      canvasSequences[i] = { setTargetFrame, totalFrames };
     }
   });
 
@@ -731,7 +755,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  section.style.height = \`\${slideCount * 110}vh\`;
+  let totalHeight = 0;
+  slides.forEach((slide) => {
+    const isCanvasSeq = slide.getAttribute("data-is-canvas") === "true";
+    if (isCanvasSeq) {
+      const canvas = slide.querySelector(".scrolly-canvas-seq");
+      const totalFrames = parseInt(canvas?.getAttribute("data-total-frames") || "30", 10);
+      const extra = Math.min(220, Math.max(90, Math.round(totalFrames * 2.2)));
+      totalHeight += 110 + extra;
+    } else {
+      totalHeight += 110;
+    }
+  });
+  section.style.height = \`\${totalHeight}vh\`;
 
   const tl = gsap.timeline({
     scrollTrigger: {
@@ -750,14 +786,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Se for Canvas Sequence, vincular o progresso do scroll ao frame do canvas 2D
     if (isCanvasSeq && canvasSequences[i]) {
-      const { drawFrame, totalFrames } = canvasSequences[i];
+      const { setTargetFrame, totalFrames } = canvasSequences[i];
       const dummyFrame = { index: 0 };
+      const seqDuration = Math.max(1.8, (totalFrames / 30) * 1.6);
       tl.to(dummyFrame, {
         index: totalFrames - 1,
         ease: "none",
-        duration: 1.5,
+        duration: seqDuration,
         onUpdate: () => {
-          drawFrame(Math.round(dummyFrame.index));
+          setTargetFrame(dummyFrame.index);
         }
       }, i === 0 ? 0 : i - 0.2);
     }

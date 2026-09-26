@@ -26,7 +26,15 @@ export default function ScrollytellingPreview({ slides, settings }) {
       const slideElements = gsap.utils.toArray('.preview-slide', scrollableRef.current);
       if (slideElements.length === 0) return;
 
-      const totalHeight = slideElements.length * 110;
+      const totalHeight = slides.reduce((acc, slide) => {
+        if (slide?.isCanvasSequence) {
+          const totalFrames = slide?.sequenceData?.totalFrames || 30;
+          const extra = Math.min(220, Math.max(90, Math.round(totalFrames * 2.2)));
+          return acc + 110 + extra;
+        }
+        return acc + 110;
+      }, 0);
+
       const section = scrollableRef.current.querySelector('.preview-section');
       if (section) {
         section.style.height = `${totalHeight}vh`;
@@ -82,9 +90,10 @@ export default function ScrollytellingPreview({ slides, settings }) {
         // Se for sequência de quadros Canvas (Apple-Style)
         if (isCanvasSequence && totalFrames > 0) {
           const dummyFrameObj = { frame: 0 };
+          const seqDuration = Math.max(1.8, (totalFrames / 30) * 1.6);
           tl.to(dummyFrameObj, {
             frame: totalFrames - 1,
-            duration: 1.5,
+            duration: seqDuration,
             ease: 'none',
             onUpdate: () => {
               const currentIdx = Math.round(dummyFrameObj.frame);
