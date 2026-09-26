@@ -6,10 +6,10 @@
 
 export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onProgress) {
   const {
-    fps = 15,          // Frames to extract per second of video
-    maxFrames = 60,    // Safety limit for memory efficiency
+    fps = 24,          // Frames to extract per second of video
+    maxFrames = 90,    // Safety limit for memory efficiency
     maxWidth = 1280,   // Max width for extracted frames
-    quality = 0.82     // JPEG compression quality (82% for optimal balance of sharpness and weight)
+    quality = 0.85     // JPEG compression quality
   } = options;
 
   return new Promise((resolve, reject) => {

@@ -33,39 +33,50 @@ export default function CanvasSequenceViewer({ frames = [], currentFrameIndex = 
 
     const ctx = canvas.getContext('2d');
     let animationFrameId = null;
-    let lastDrawnIndex = -1;
 
     const renderLoop = () => {
       const target = targetFrameRef.current;
       const diff = target - currentFrameRef.current;
 
-      if (Math.abs(diff) > 0.001) {
-        // 0.22 LERP factor creates silky smooth inertia without lag
-        currentFrameRef.current += diff * 0.22;
+      if (Math.abs(diff) > 0.0001) {
+        currentFrameRef.current += diff * 0.18;
       } else {
         currentFrameRef.current = target;
       }
 
-      const frameIdx = Math.max(0, Math.min(Math.round(currentFrameRef.current), frames.length - 1));
+      const totalCount = frames.length;
+      const currentVal = Math.max(0, Math.min(currentFrameRef.current, totalCount - 1));
+      const frameA = Math.floor(currentVal);
+      const frameB = Math.min(frameA + 1, totalCount - 1);
+      const blendAmount = currentVal - frameA;
 
-      if (frameIdx !== lastDrawnIndex) {
-        const img = imagesRef.current[frameIdx];
-        if (img && (img.complete || img.naturalWidth > 0)) {
-          const cw = canvas.width;
-          const ch = canvas.height;
-          const iw = img.naturalWidth || img.width || 1280;
-          const ih = img.naturalHeight || img.height || 720;
+      const imgA = imagesRef.current[frameA];
+      const imgB = imagesRef.current[frameB];
 
-          // Compute cover scaling
-          const scale = Math.max(cw / iw, ch / ih);
-          const nw = iw * scale;
-          const nh = ih * scale;
-          const cx = (cw - nw) / 2;
-          const cy = (ch - nh) / 2;
+      if (imgA && (imgA.complete || imgA.naturalWidth > 0)) {
+        const cw = canvas.width;
+        const ch = canvas.height;
+        const iw = imgA.naturalWidth || imgA.width || 1280;
+        const ih = imgA.naturalHeight || imgA.height || 720;
 
-          ctx.clearRect(0, 0, cw, ch);
-          ctx.drawImage(img, cx, cy, nw, nh);
-          lastDrawnIndex = frameIdx;
+        // Compute cover scaling
+        const scale = Math.max(cw / iw, ch / ih);
+        const nw = iw * scale;
+        const nh = ih * scale;
+        const cx = (cw - nw) / 2;
+        const cy = (ch - nh) / 2;
+
+        ctx.clearRect(0, 0, cw, ch);
+
+        // 1. Draw base frame A
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(imgA, cx, cy, nw, nh);
+
+        // 2. Crossfade blend frame B on top for sub-frame liquidity
+        if (frameA !== frameB && blendAmount > 0.005 && imgB && (imgB.complete || imgB.naturalWidth > 0)) {
+          ctx.globalAlpha = blendAmount;
+          ctx.drawImage(imgB, cx, cy, nw, nh);
+          ctx.globalAlpha = 1.0;
         }
       }
 
