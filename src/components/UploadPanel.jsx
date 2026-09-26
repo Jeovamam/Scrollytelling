@@ -340,10 +340,15 @@ export default function UploadPanel({
                       onChange={(e) => updateSlide(slide.id, 'captionPosition', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-300 focus:outline-none focus:border-sky-500"
                     >
-                      <option value="bottom-left">Inferior Esquerda</option>
-                      <option value="bottom-right">Inferior Direita</option>
+                      <option value="top-left">Superior Esquerda</option>
+                      <option value="top-center">Superior Centralizado</option>
+                      <option value="top-right">Superior Direita</option>
                       <option value="center-left">Centro Esquerda</option>
                       <option value="center">Centralizado</option>
+                      <option value="center-right">Centro Direita</option>
+                      <option value="bottom-left">Inferior Esquerda</option>
+                      <option value="bottom-center">Inferior Centralizado</option>
+                      <option value="bottom-right">Inferior Direita</option>
                     </select>
                   </div>
                 </div>

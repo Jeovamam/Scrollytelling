@@ -370,25 +370,56 @@ body.scrolly-body {
   padding: 0;
 }
 
-/* Posicionamentos */
-.scrolly-caption-box.pos-bottom-left {
-  bottom: 56px;
+/* Posicionamentos com Margens de Segurança de Borda */
+.scrolly-caption-box.pos-top-left {
+  top: 90px;
   left: 56px;
+  text-align: left;
 }
-.scrolly-caption-box.pos-bottom-right {
-  bottom: 56px;
+.scrolly-caption-box.pos-top-center {
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.scrolly-caption-box.pos-top-right {
+  top: 90px;
   right: 56px;
+  text-align: right;
 }
 .scrolly-caption-box.pos-center-left {
   top: 50%;
   left: 56px;
   transform: translateY(-50%);
+  text-align: left;
 }
 .scrolly-caption-box.pos-center {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
+}
+.scrolly-caption-box.pos-center-right {
+  top: 50%;
+  right: 56px;
+  transform: translateY(-50%);
+  text-align: right;
+}
+.scrolly-caption-box.pos-bottom-left {
+  bottom: 64px;
+  left: 56px;
+  text-align: left;
+}
+.scrolly-caption-box.pos-bottom-center {
+  bottom: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.scrolly-caption-box.pos-bottom-right {
+  bottom: 64px;
+  right: 56px;
+  text-align: right;
 }
 
 .scrolly-title {

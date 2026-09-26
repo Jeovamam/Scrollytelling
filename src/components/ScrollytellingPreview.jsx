@@ -195,10 +195,15 @@ export default function ScrollytellingPreview({ slides, settings }) {
                   <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
                     {slides.map((slide, index) => {
                       const posClasses = {
-                        'bottom-left': 'bottom-12 left-6 sm:left-10 text-left',
-                        'bottom-right': 'bottom-12 right-6 sm:right-10 text-left',
+                        'top-left': 'top-20 left-6 sm:left-10 text-left',
+                        'top-center': 'top-20 left-1/2 -translate-x-1/2 text-center',
+                        'top-right': 'top-20 right-6 sm:right-10 text-right',
                         'center-left': 'top-1/2 -translate-y-1/2 left-6 sm:left-10 text-left',
-                        'center': 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center'
+                        'center': 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center',
+                        'center-right': 'top-1/2 -translate-y-1/2 right-6 sm:right-10 text-right',
+                        'bottom-left': 'bottom-16 left-6 sm:left-10 text-left',
+                        'bottom-center': 'bottom-16 left-1/2 -translate-x-1/2 text-center',
+                        'bottom-right': 'bottom-16 right-6 sm:right-10 text-right'
                       };
 
                       const themeClasses = {
