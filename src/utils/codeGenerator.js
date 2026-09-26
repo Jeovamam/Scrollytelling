@@ -577,53 +577,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let targetFrame = 0;
       let currentFrame = 0;
+      let lastDrawnFrame = -1;
 
       function setTargetFrame(frameIdx) {
         targetFrame = Math.max(0, Math.min(frameIdx, totalFrames - 1));
       }
 
-      function renderCurrentFrame(val) {
-        const totalCount = images.length;
-        if (totalCount === 0) return;
-        const currentVal = Math.max(0, Math.min(val, totalCount - 1));
-        const frameA = Math.floor(currentVal);
-        const frameB = Math.min(frameA + 1, totalCount - 1);
-        const blendAmount = currentVal - frameA;
-
-        const imgA = images[frameA];
-        const imgB = images[frameB];
-
-        if (imgA && (imgA.complete || imgA.naturalWidth > 0)) {
-          const cw = canvas.width;
-          const ch = canvas.height;
-          const iw = imgA.naturalWidth || 1280;
-          const ih = imgA.naturalHeight || 720;
-          const scale = Math.max(cw / iw, ch / ih);
-          const nw = iw * scale;
-          const nh = ih * scale;
-          const cx = (cw - nw) / 2;
-          const cy = (ch - nh) / 2;
-
-          ctx2d.clearRect(0, 0, cw, ch);
-          ctx2d.globalAlpha = 1.0;
-          ctx2d.drawImage(imgA, cx, cy, nw, nh);
-
-          if (frameA !== frameB && blendAmount > 0.005 && imgB && (imgB.complete || imgB.naturalWidth > 0)) {
-            ctx2d.globalAlpha = blendAmount;
-            ctx2d.drawImage(imgB, cx, cy, nw, nh);
-            ctx2d.globalAlpha = 1.0;
-          }
-        }
+      function drawFrame(frameIdx) {
+        const img = images[Math.max(0, Math.min(frameIdx, images.length - 1))];
+        if (!img || (!img.complete && img.naturalWidth === 0)) return;
+        const cw = canvas.width;
+        const ch = canvas.height;
+        const iw = img.naturalWidth || 1280;
+        const ih = img.naturalHeight || 720;
+        const scale = Math.max(cw / iw, ch / ih);
+        const nw = iw * scale;
+        const nh = ih * scale;
+        ctx2d.clearRect(0, 0, cw, ch);
+        ctx2d.globalAlpha = 1.0;
+        ctx2d.drawImage(img, (cw - nw) / 2, (ch - nh) / 2, nw, nh);
       }
 
       function loopRAF() {
         const diff = targetFrame - currentFrame;
-        if (Math.abs(diff) > 0.0001) {
-          currentFrame += diff * 0.18;
+        if (Math.abs(diff) > 0.001) {
+          currentFrame += diff * 0.25;
         } else {
           currentFrame = targetFrame;
         }
-        renderCurrentFrame(currentFrame);
+        const frameToDraw = Math.round(currentFrame);
+        if (frameToDraw !== lastDrawnFrame) {
+          drawFrame(frameToDraw);
+          lastDrawnFrame = frameToDraw;
+        }
         requestAnimationFrame(loopRAF);
       }
       requestAnimationFrame(loopRAF);
