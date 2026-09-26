@@ -13,7 +13,7 @@ export default function CanvasSequenceViewer({ frames = [], currentFrameIndex = 
 
     imagesRef.current = frames.map((frame) => {
       const img = new Image();
-      img.src = frame.dataUrl || frame.url;
+      img.src = frame.objectUrl || frame.url || frame.dataUrl;
       return img;
     });
   }, [frames]);

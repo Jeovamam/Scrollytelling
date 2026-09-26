@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Copy, Check, Download, Code2, FileCode, FileText, Loader2 } from 'lucide-react';
 import { generateHTML, generateCSS, generateJS } from '../utils/codeGenerator';
 import { exportToZip } from '../utils/zipExporter';
@@ -9,9 +9,10 @@ export default function CodeViewer({ slides, settings }) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState('');
 
-  const htmlCode = generateHTML(slides, settings);
-  const cssCode = generateCSS(settings);
-  const jsCode = generateJS(slides, settings);
+  // Memoize generated code to prevent heavy string processing on unrelated re-renders
+  const htmlCode = useMemo(() => generateHTML(slides, settings), [slides, settings]);
+  const cssCode = useMemo(() => generateCSS(settings), [settings]);
+  const jsCode = useMemo(() => generateJS(slides, settings), [slides, settings]);
 
   const getActiveCode = () => {
     switch (activeTab) {
@@ -50,6 +51,7 @@ export default function CodeViewer({ slides, settings }) {
         <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
           <button
             onClick={() => setActiveTab('html')}
+            aria-label="Ver código HTML semântico"
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'html' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <FileCode className="w-3.5 h-3.5" />
@@ -57,6 +59,7 @@ export default function CodeViewer({ slides, settings }) {
           </button>
           <button
             onClick={() => setActiveTab('css')}
+            aria-label="Ver estilos CSS responsivos"
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'css' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -64,6 +67,7 @@ export default function CodeViewer({ slides, settings }) {
           </button>
           <button
             onClick={() => setActiveTab('js')}
+            aria-label="Ver código JavaScript com GSAP"
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'js' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <Code2 className="w-3.5 h-3.5" />
@@ -75,6 +79,7 @@ export default function CodeViewer({ slides, settings }) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCopy}
+            aria-label="Copiar código para a área de transferência"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition"
             title="Copiar código da aba selecionada"
           >
@@ -85,6 +90,7 @@ export default function CodeViewer({ slides, settings }) {
           <button
             onClick={handleExportZip}
             disabled={slides.length === 0 || isExporting}
+            aria-label="Baixar pacote completo compactado em ZIP"
             className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-sky-500 hover:bg-sky-400 disabled:opacity-40 text-white rounded-lg transition shadow-lg shadow-sky-500/20"
             title="Baixar pacote completo com arquivos HTML, CSS, JS e pastas de imagens"
           >

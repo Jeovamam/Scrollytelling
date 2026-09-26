@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layers, Eye, Code2, Download, Sparkles, Compass } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Compass, Eye, Code2, Download } from 'lucide-react';
 import UploadPanel from './components/UploadPanel';
 import ScrollytellingPreview from './components/ScrollytellingPreview';
 import CodeViewer from './components/CodeViewer';
@@ -10,15 +10,32 @@ export default function App() {
   const [slides, setSlides] = useState(PRESET_SLIDES);
   const [viewMode, setViewMode] = useState('preview'); // 'preview' | 'code'
   const [settings, setSettings] = useState({
-    zoomScale: 1.18,
+    zoomScale: 1.45,
     scrubDuration: 1,
-    title: 'Tour Virtual - Landing Page Real Estate'
+    title: 'Residencial & Exclusive Real Estate',
+    metaDescription: 'Conheça o tour virtual imersivo do empreendimento com alta resolução e experiência interativa em 360° e 60fps.',
+    businessName: 'Empresarial & Real Estate',
+    ogImage: ''
   });
   const [isExporting, setIsExporting] = useState(false);
 
   const handleLoadPresets = () => {
     setSlides(PRESET_SLIDES);
   };
+
+  // Memory Leak Cleanup (3.1): Revoke Object URLs on unmount
+  useEffect(() => {
+    return () => {
+      slides.forEach(s => {
+        if (s.url?.startsWith('blob:')) URL.revokeObjectURL(s.url);
+        if (s.sequenceData?.frames) {
+          s.sequenceData.frames.forEach(f => {
+            if (f.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(f.objectUrl);
+          });
+        }
+      });
+    };
+  }, [slides]);
 
   const handleQuickExport = async () => {
     if (slides.length === 0) return;
@@ -59,6 +76,7 @@ export default function App() {
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => setViewMode('preview')}
+              aria-label="Alternar para visualização de preview ao vivo"
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${viewMode === 'preview' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
             >
               <Eye className="w-3.5 h-3.5" />
@@ -66,6 +84,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setViewMode('code')}
+              aria-label="Alternar para visualização de código exportável"
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${viewMode === 'code' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
             >
               <Code2 className="w-3.5 h-3.5" />
@@ -77,6 +96,7 @@ export default function App() {
           <button
             onClick={handleQuickExport}
             disabled={slides.length === 0 || isExporting}
+            aria-label="Exportar pacote completo ZIP"
             className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white rounded-xl transition shadow-lg shadow-sky-600/20"
           >
             <Download className="w-3.5 h-3.5" />

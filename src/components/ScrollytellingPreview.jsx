@@ -1,10 +1,11 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, lazy, Suspense } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Monitor, Tablet, Smartphone, Eye, Sparkles } from 'lucide-react';
-import PanoramaViewer360 from './PanoramaViewer360';
 
 import CanvasSequenceViewer from './CanvasSequenceViewer';
+
+const PanoramaViewer360 = lazy(() => import('./PanoramaViewer360'));
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -15,7 +16,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
   const containerRef = useRef(null);
   const scrollableRef = useRef(null);
 
-  const zoomScale = settings?.zoomScale || 1.18;
+  const zoomScale = settings?.zoomScale || 1.45;
   const scrubDuration = settings?.scrubDuration || 1;
 
   useEffect(() => {
@@ -25,9 +26,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
       const slideElements = gsap.utils.toArray('.preview-slide', scrollableRef.current);
       if (slideElements.length === 0) return;
 
-      ScrollTrigger.getAll().forEach(t => t.kill());
-
-      const totalHeight = slideElements.length * 100;
+      const totalHeight = slideElements.length * 110;
       const section = scrollableRef.current.querySelector('.preview-section');
       if (section) {
         section.style.height = `${totalHeight}vh`;
@@ -51,10 +50,10 @@ export default function ScrollytellingPreview({ slides, settings }) {
         const isCanvasSequence = slides[i]?.isCanvasSequence;
         const totalFrames = slides[i]?.sequenceData?.totalFrames || 0;
 
-        // 1. Efeito de Câmera Avançando (Scale 1.0 -> 1.45 ao adentrar)
+        // 1. Efeito de Câmera Avançando (utilizando a variável zoomScale das configurações)
         if (i === 0) {
           if (media) {
-            tl.to(media, { scale: 1.45, ease: 'none' }, 0);
+            tl.to(media, { scale: zoomScale, ease: 'none' }, 0);
           }
         } else {
           tl.to(slide, {
@@ -65,7 +64,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
 
           if (media) {
             tl.fromTo(media,
-              { scale: 1.35 },
+              { scale: Math.max(1.1, zoomScale - 0.10) },
               { scale: 1.0, duration: 1.1, ease: 'power1.out' },
               i - 0.35
             );
@@ -73,7 +72,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
 
           if (i < slideElements.length - 1 && media) {
             tl.to(media, {
-              scale: 1.45,
+              scale: zoomScale,
               duration: 1,
               ease: 'none'
             }, i + 0.4);
@@ -94,7 +93,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
           }, i === 0 ? 0 : i - 0.2);
         }
 
-        // Se for 360°, manter o ângulo base estável durante o scroll (sem giros automáticos descontrolados)
+        // Se for 360°, manter o ângulo base estável durante o scroll
         if (is360) {
           setSlideYaws(prev => ({ ...prev, [i]: 0 }));
         }
@@ -120,7 +119,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
     }, scrollableRef);
 
     return () => ctx.revert();
-  }, [slides, settings, deviceMode]);
+  }, [slides, settings, zoomScale, scrubDuration, deviceMode]);
 
   const deviceWidths = {
     desktop: 'w-full max-w-full',
@@ -143,6 +142,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
         <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
           <button
             onClick={() => setDeviceMode('desktop')}
+            aria-label="Visualizar em formato Desktop"
             className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition ${deviceMode === 'desktop' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <Monitor className="w-3.5 h-3.5" />
@@ -150,6 +150,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
           </button>
           <button
             onClick={() => setDeviceMode('tablet')}
+            aria-label="Visualizar em formato Tablet (768px)"
             className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition ${deviceMode === 'tablet' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <Tablet className="w-3.5 h-3.5" />
@@ -157,6 +158,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
           </button>
           <button
             onClick={() => setDeviceMode('mobile')}
+            aria-label="Visualizar em formato Mobile (375px)"
             className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition ${deviceMode === 'mobile' ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <Smartphone className="w-3.5 h-3.5" />
@@ -177,7 +179,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
           >
             {/* Header Simulado da Landing Page */}
             <div className="sticky top-0 left-0 right-0 z-40 px-6 py-4 flex items-center justify-between bg-slate-950/70 backdrop-blur border-b border-white/10 pointer-events-none">
-              <span className="font-bold text-sm tracking-tight text-white">REALTOR & SPACE</span>
+              <span className="font-bold text-sm tracking-tight text-white">{settings?.title || 'RESIDENCIAL & EXCLUSIVE REAL ESTATE'}</span>
               <span className="text-xs px-3 py-1 bg-sky-500 text-white rounded-full font-semibold">Agendar Visita</span>
             </div>
 
@@ -225,20 +227,22 @@ export default function ScrollytellingPreview({ slides, settings }) {
                               </div>
                             ) : slide.is360 ? (
                               <div className="relative w-full h-full bg-slate-950 overflow-hidden">
-                                <PanoramaViewer360
-                                  url={slide.url}
-                                  yaw={slideYaws[index] || 0}
-                                  interactive={true}
-                                />
+                                <Suspense fallback={<div className="w-full h-full bg-slate-950 flex items-center justify-center text-xs text-slate-500">Carregando WebGL 360°...</div>}>
+                                  <PanoramaViewer360
+                                    url={slide.url}
+                                    yaw={slideYaws[index] || 0}
+                                    interactive={true}
+                                  />
+                                </Suspense>
                                 <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-amber-500/20 border border-amber-500/40 text-amber-300 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg pointer-events-none">
                                   <Sparkles className="w-3.5 h-3.5" />
-                                  <span>Visualizador Esférico 360° (Arraste para explorar)</span>
+                                  <span>Visualizador Esférico 360° (Mova o cursor)</span>
                                 </div>
                               </div>
                             ) : slide.type === 'video' ? (
                               <video src={slide.url} autoPlay muted loop playsInline className="preview-media w-full h-full object-cover" />
                             ) : (
-                              <img src={slide.url} alt={slide.title} className="preview-media w-full h-full object-cover" />
+                              <img src={slide.url} alt={slide.title || slide.caption || `Ambiente ${index + 1}`} className="preview-media w-full h-full object-cover" />
                             )}
                             <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/80 pointer-events-none" />
                           </div>
@@ -259,6 +263,7 @@ export default function ScrollytellingPreview({ slides, settings }) {
                               <div className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 uppercase tracking-widest">
                                 <span>{String(index + 1).padStart(2, '0')}</span> / {String(slides.length).padStart(2, '0')}
                                 {slide.is360 && ' • VISÃO 360°'}
+                                {slide.isCanvasSequence && ' • CANVAS 60FPS'}
                               </div>
                             </div>
                           )}

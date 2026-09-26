@@ -1,6 +1,7 @@
 /**
  * Client-side Video-to-Frame Sequence Extractor.
  * Extracts N evenly spaced high-quality frames from a video file using HTML5 Video + Canvas.
+ * Memory Optimized: Uses revokable Blob URLs instead of base64 dataUrl strings to prevent memory leaks.
  */
 
 export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onProgress) {
@@ -17,11 +18,11 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
     video.muted = true;
     video.playsInline = true;
 
-    const url = typeof videoFileOrUrl === 'string' 
+    const sourceUrl = typeof videoFileOrUrl === 'string' 
       ? videoFileOrUrl 
       : URL.createObjectURL(videoFileOrUrl);
 
-    video.src = url;
+    video.src = sourceUrl;
 
     video.onloadedmetadata = async () => {
       const duration = video.duration;
@@ -30,14 +31,12 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
         return;
       }
 
-      // Calculate total frames
       let totalFrames = Math.min(Math.floor(duration * fps), maxFrames);
-      if (totalFrames < 5) totalFrames = 5; // Minimum 5 frames
+      if (totalFrames < 5) totalFrames = 5;
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
-      // Aspect ratio scale
       let width = video.videoWidth || 1280;
       let height = video.videoHeight || 720;
       if (width > maxWidth) {
@@ -55,22 +54,19 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
           onProgress(Math.round(((i + 1) / totalFrames) * 100), i + 1, totalFrames);
         }
 
-        // Seek video to exact frame time
         await seekVideoToTime(video, time);
-
-        // Draw video frame to canvas
         ctx.drawImage(video, 0, 0, width, height);
 
-        // Export blob & dataURL
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        // Memory optimization: export Blob and revokable objectUrl
         const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
-
+        const objectUrl = URL.createObjectURL(blob);
         const fileName = `frame_${String(i + 1).padStart(3, '0')}.jpg`;
 
         frames.push({
           index: i,
           time,
-          dataUrl,
+          url: objectUrl,
+          objectUrl,
           blob,
           fileName,
           width,
@@ -79,7 +75,7 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
       }
 
       if (typeof videoFileOrUrl !== 'string') {
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(sourceUrl);
       }
 
       resolve({
@@ -91,7 +87,7 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
       });
     };
 
-    video.onerror = (err) => {
+    video.onerror = () => {
       reject(new Error('Não foi possível carregar o vídeo para extração de quadros.'));
     };
   });

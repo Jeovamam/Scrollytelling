@@ -7,14 +7,13 @@ import {
   Trash2, 
   Film, 
   Image as ImageIcon,
-  GripVertical,
-  Type,
-  Layout,
   Sliders,
   RotateCcw,
   Check,
-  Loader2
+  Loader2,
+  Globe
 } from 'lucide-react';
+import { extractFramesFromVideo } from '../utils/videoFrameExtractor';
 
 export default function UploadPanel({ 
   slides, 
@@ -72,16 +71,41 @@ export default function UploadPanel({
     newSlides[index] = newSlides[targetIndex];
     newSlides[targetIndex] = temp;
 
-    // Recalculate sequences
     const resequenced = newSlides.map((s, idx) => ({ ...s, sequence: idx + 1 }));
     setSlides(resequenced);
   };
 
+  // Memory Leak Fix (3.1): Revoke Object URLs on remove
   const removeSlide = (id) => {
     setSlides(prev => {
+      const target = prev.find(s => s.id === id);
+      if (target?.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      if (target?.sequenceData?.frames) {
+        target.sequenceData.frames.forEach(f => {
+          if (f.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(f.objectUrl);
+        });
+      }
       const filtered = prev.filter(s => s.id !== id);
       return filtered.map((s, idx) => ({ ...s, sequence: idx + 1 }));
     });
+  };
+
+  // Memory Leak Fix (3.1) & Confirmation (6.2): Revoke all Object URLs on clear
+  const handleClearAll = () => {
+    if (slides.length === 0) return;
+    if (window.confirm('Tem certeza que deseja remover todas as mídias do tour?')) {
+      slides.forEach(s => {
+        if (s.url?.startsWith('blob:')) URL.revokeObjectURL(s.url);
+        if (s.sequenceData?.frames) {
+          s.sequenceData.frames.forEach(f => {
+            if (f.objectUrl?.startsWith('blob:')) URL.revokeObjectURL(f.objectUrl);
+          });
+        }
+      });
+      setSlides([]);
+    }
   };
 
   return (
@@ -98,6 +122,7 @@ export default function UploadPanel({
         <div className="flex items-center gap-2">
           <button
             onClick={onLoadPresets}
+            aria-label="Carregar imagens de exemplo para testes"
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 rounded-lg transition"
             title="Carregar imagens de exemplo para testes"
           >
@@ -106,7 +131,8 @@ export default function UploadPanel({
           </button>
           {slides.length > 0 && (
             <button
-              onClick={() => setSlides([])}
+              onClick={handleClearAll}
+              aria-label="Limpar todas as mídias"
               className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
               title="Limpar todas as mídias"
             >
@@ -117,12 +143,16 @@ export default function UploadPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Zona de Drop */}
+        {/* Zona de Drop Acessível via Teclado (5.1) */}
         <div
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-slate-700 hover:border-sky-500/60 bg-slate-950/40 hover:bg-slate-800/30 rounded-xl p-6 text-center cursor-pointer transition group"
+          aria-label="Área de envio de mídias por arrasto ou clique"
+          className="border-2 border-dashed border-slate-700 hover:border-sky-500/60 bg-slate-950/40 hover:bg-slate-800/30 rounded-xl p-6 text-center cursor-pointer transition group focus:outline-none focus:border-sky-400"
         >
           <input
             ref={fileInputRef}
@@ -143,22 +173,49 @@ export default function UploadPanel({
           </p>
         </div>
 
-        {/* Configurações Gerais do Efeito */}
+        {/* Configurações Gerais da Página e Animação (6.1 & SEO 4.1) */}
         <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-3">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-1.5">
+            <Globe className="w-3.5 h-3.5 text-sky-400" />
+            Configurações da Página & SEO
+          </span>
+          <div className="space-y-2 text-xs">
+            <div>
+              <label className="text-slate-400 block mb-1">Título do Projeto / Empreendimento</label>
+              <input
+                type="text"
+                value={settings.title || ''}
+                onChange={(e) => setSettings(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Ex: Residencial Exclusive Real Estate"
+                className="w-full bg-slate-900 border border-slate-800 focus:border-sky-500 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">Descrição Meta (SEO Google)</label>
+              <textarea
+                value={settings.metaDescription || ''}
+                onChange={(e) => setSettings(prev => ({ ...prev, metaDescription: e.target.value }))}
+                rows={2}
+                placeholder="Descrição para aparecer nos buscadores e redes sociais..."
+                className="w-full bg-slate-900 border border-slate-800 focus:border-sky-500 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none resize-none"
+              />
+            </div>
+          </div>
+
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block pt-2 border-t border-slate-800/80">
             Ajustes de Animação
           </span>
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
               <label className="text-slate-400 block mb-1">Intensidade Zoom ("Adentrar")</label>
               <select
-                value={settings.zoomScale || 1.18}
+                value={settings.zoomScale || 1.45}
                 onChange={(e) => setSettings(prev => ({ ...prev, zoomScale: parseFloat(e.target.value) }))}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-sky-500"
               >
-                <option value={1.08}>Sutil (1.08x)</option>
-                <option value={1.18}>Moderado (1.18x)</option>
-                <option value={1.30}>Intenso (1.30x)</option>
+                <option value={1.18}>Sutil (1.18x)</option>
+                <option value={1.45}>Moderado Imobiliário (1.45x)</option>
+                <option value={1.70}>Intenso (1.70x)</option>
               </select>
             </div>
             <div>
@@ -203,6 +260,7 @@ export default function UploadPanel({
                     <button
                       onClick={() => moveSlide(index, 'up')}
                       disabled={index === 0}
+                      aria-label={`Mover slide ${index + 1} para cima`}
                       className="p-1 text-slate-400 hover:text-slate-100 disabled:opacity-30 disabled:hover:text-slate-400 rounded transition"
                       title="Mover para cima"
                     >
@@ -211,6 +269,7 @@ export default function UploadPanel({
                     <button
                       onClick={() => moveSlide(index, 'down')}
                       disabled={index === slides.length - 1}
+                      aria-label={`Mover slide ${index + 1} para baixo`}
                       className="p-1 text-slate-400 hover:text-slate-100 disabled:opacity-30 disabled:hover:text-slate-400 rounded transition"
                       title="Mover para baixo"
                     >
@@ -218,6 +277,7 @@ export default function UploadPanel({
                     </button>
                     <button
                       onClick={() => removeSlide(slide.id)}
+                      aria-label={`Remover mídia ${slide.title || index + 1}`}
                       className="p-1 text-slate-500 hover:text-red-400 rounded transition"
                       title="Remover mídia"
                     >
@@ -233,7 +293,7 @@ export default function UploadPanel({
                     {slide.type === 'video' ? (
                       <video src={slide.url} className="w-full h-full object-cover" muted />
                     ) : (
-                      <img src={slide.url} alt={slide.title} className="w-full h-full object-cover" />
+                      <img src={slide.url} alt={slide.title || `Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
                     )}
                     <span className="absolute bottom-1 right-1 p-1 bg-slate-950/80 rounded text-[10px] text-slate-300">
                       {slide.type === 'video' ? <Film className="w-3 h-3 text-sky-400" /> : <ImageIcon className="w-3 h-3 text-emerald-400" />}
@@ -341,6 +401,7 @@ export default function UploadPanel({
                             }
                           }}
                           disabled={slide.extracting}
+                          aria-label="Gerar sequência de quadros Canvas 60fps"
                           className="px-2.5 py-1 text-[11px] font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded transition flex items-center gap-1"
                         >
                           {slide.extracting ? (
