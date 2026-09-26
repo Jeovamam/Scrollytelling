@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Compass, Eye, Code2, Download } from 'lucide-react';
+import { Eye, Code2, Download } from 'lucide-react';
 import UploadPanel from './components/UploadPanel';
 import ScrollytellingPreview from './components/ScrollytellingPreview';
 import CodeViewer from './components/CodeViewer';
@@ -54,9 +54,11 @@ export default function App() {
       {/* Top Navbar */}
       <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-4 flex items-center justify-between shrink-0 z-30">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
-            <Compass className="w-5 h-5 text-white" />
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="Scrollytelling Logo"
+            className="w-9 h-9 rounded-xl object-cover shadow-md shadow-sky-500/20 border border-slate-700/50"
+          />
           <div>
             <h1 className="text-sm font-bold text-slate-100 tracking-tight flex items-center gap-2">
               Scrollytelling Generator
