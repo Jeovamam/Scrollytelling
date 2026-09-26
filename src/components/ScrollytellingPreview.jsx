@@ -87,10 +87,12 @@ export default function ScrollytellingPreview({ slides, settings }) {
           }
         }
 
-        // Se for sequência de quadros Canvas (Apple-Style)
+        // Se for sequência de quadros Canvas (Estilo Voo de Drone FPV)
         if (isCanvasSequence && totalFrames > 0) {
           const dummyFrameObj = { frame: 0 };
-          const seqDuration = Math.max(1.8, (totalFrames / 30) * 1.6);
+          const canvasElem = slide.querySelector('canvas');
+          const seqDuration = Math.max(2.0, (totalFrames / 30) * 1.8);
+
           tl.to(dummyFrameObj, {
             frame: totalFrames - 1,
             duration: seqDuration,
@@ -100,6 +102,15 @@ export default function ScrollytellingPreview({ slides, settings }) {
               setCanvasFrameIndices(prev => ({ ...prev, [i]: currentIdx }));
             }
           }, i === 0 ? 0 : i - 0.2);
+
+          // Efeito "Voo de Drone": Avanço contínuo da câmera em escala para dentro do ambiente
+          if (canvasElem) {
+            tl.fromTo(canvasElem,
+              { scale: 1.0 },
+              { scale: Math.max(1.15, zoomScale - 0.1), ease: 'none', duration: seqDuration },
+              i === 0 ? 0 : i - 0.2
+            );
+          }
         }
 
         // Se for 360°, manter o ângulo base estável durante o scroll

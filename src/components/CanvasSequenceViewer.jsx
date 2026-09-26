@@ -39,7 +39,8 @@ export default function CanvasSequenceViewer({ frames = [], currentFrameIndex = 
       const diff = target - currentFrameRef.current;
 
       if (Math.abs(diff) > 0.0001) {
-        currentFrameRef.current += diff * 0.18;
+        // 0.12 LERP factor provides smooth FPV drone camera glide & momentum
+        currentFrameRef.current += diff * 0.12;
       } else {
         currentFrameRef.current = target;
       }

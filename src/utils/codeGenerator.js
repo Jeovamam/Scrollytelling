@@ -799,11 +799,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const caption = slide.querySelector(".scrolly-caption-box");
     const isCanvasSeq = slide.getAttribute("data-is-canvas") === "true";
 
-    // Se for Canvas Sequence, vincular o progresso do scroll ao frame do canvas 2D
+    // Se for Canvas Sequence (Estilo Voo de Drone FPV)
     if (isCanvasSeq && canvasSequences[i]) {
       const { setTargetFrame, totalFrames } = canvasSequences[i];
+      const canvasElem = slide.querySelector(".scrolly-canvas-seq");
       const dummyFrame = { index: 0 };
-      const seqDuration = Math.max(1.8, (totalFrames / 30) * 1.6);
+      const seqDuration = Math.max(2.0, (totalFrames / 30) * 1.8);
+
       tl.to(dummyFrame, {
         index: totalFrames - 1,
         ease: "none",
@@ -812,6 +814,14 @@ document.addEventListener("DOMContentLoaded", () => {
           setTargetFrame(dummyFrame.index);
         }
       }, i === 0 ? 0 : i - 0.2);
+
+      if (canvasElem) {
+        tl.fromTo(canvasElem,
+          { scale: 1.0 },
+          { scale: ${Math.max(1.15, zoomScale - 0.1)}, ease: "none", duration: seqDuration },
+          i === 0 ? 0 : i - 0.2
+        );
+      }
     }
 
     if (!prefersReducedMotion) {
