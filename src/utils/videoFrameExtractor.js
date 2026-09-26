@@ -9,7 +9,8 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
     fps = 24,          // Frames to extract per second of video
     maxFrames = 90,    // Safety limit for memory efficiency
     maxWidth = 1280,   // Max width for extracted frames
-    quality = 0.85     // JPEG compression quality
+    quality = 0.85,    // Image compression quality
+    format = 'image/webp' // Export format (webp for smaller size, better quality)
   } = options;
 
   return new Promise((resolve, reject) => {
@@ -48,6 +49,8 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
 
       const frames = [];
 
+      const extension = format === 'image/webp' ? 'webp' : 'jpg';
+
       for (let i = 0; i < totalFrames; i++) {
         const time = (i / (totalFrames - 1)) * (duration - 0.05);
         if (onProgress) {
@@ -58,9 +61,9 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
         ctx.drawImage(video, 0, 0, width, height);
 
         // Memory optimization: export Blob and revokable objectUrl
-        const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+        const blob = await canvasToBlob(canvas, format, quality);
         const objectUrl = URL.createObjectURL(blob);
-        const fileName = `frame_${String(i + 1).padStart(3, '0')}.jpg`;
+        const fileName = `frame_${String(i + 1).padStart(3, '0')}.${extension}`;
 
         frames.push({
           index: i,

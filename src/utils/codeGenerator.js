@@ -24,8 +24,13 @@ export function generateHTML(slides, settings = {}) {
     
     let mediaTag;
     if (isCanvasSeq) {
+      let ext = "webp"; // Default to webp as we upgraded the extractor
+      if (slide.sequenceData?.frames?.length > 0) {
+         const firstFileName = slide.sequenceData.frames[0].fileName;
+         ext = firstFileName.split('.').pop();
+      }
       mediaTag = `
-        <canvas id="canvas-seq-${index}" class="scrolly-canvas-seq" data-frames-dir="assets/frames_slide_${index + 1}" data-total-frames="${totalFrames}"></canvas>
+        <canvas id="canvas-seq-${index}" class="scrolly-canvas-seq" data-frames-dir="assets/frames_slide_${index + 1}" data-total-frames="${totalFrames}" data-frame-ext="${ext}"></canvas>
         <div class="scrolly-360-badge">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
           <span>Sequência Canvas 60fps</span>
@@ -555,6 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (isCanvasSeq && canvas) {
       const framesDir = canvas.getAttribute("data-frames-dir");
+      const frameExt = canvas.getAttribute("data-frame-ext") || "jpg";
       const totalFrames = parseInt(canvas.getAttribute("data-total-frames") || "30", 10);
       const ctx2d = canvas.getContext("2d");
       const images = [];
@@ -563,7 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
       for (let f = 1; f <= totalFrames; f++) {
         const img = new Image();
         const frameIndexStr = String(f).padStart(3, "0");
-        img.src = \`\${framesDir}/frame_\${frameIndexStr}.jpg\`;
+        img.src = \`\${framesDir}/frame_\${frameIndexStr}.\${frameExt}\`;
         images.push(img);
       }
 
