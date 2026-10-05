@@ -23,8 +23,9 @@ export default function UploadPanel({
   setSettings 
 }) {
   const fileInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
-  const handleFilesSelected = (files) => {
+  const handleFilesSelected = (files, { autoSequence = false } = {}) => {
     const newSlides = Array.from(files).map((file, idx) => {
       const isVideo = file.type.startsWith('video/');
       const url = URL.createObjectURL(file);
@@ -45,6 +46,10 @@ export default function UploadPanel({
     });
 
     setSlides((prev) => [...prev, ...newSlides]);
+
+    if (autoSequence) {
+      newSlides.filter((sl) => sl.type === 'video').forEach(convertToSequence);
+    }
   };
 
   const handleDrop = (e) => {
@@ -73,6 +78,24 @@ export default function UploadPanel({
 
     const resequenced = newSlides.map((s, idx) => ({ ...s, sequence: idx + 1 }));
     setSlides(resequenced);
+  };
+
+  // Converte um vídeo em sequência de quadros (Canvas Sequence estilo Apple)
+  const convertToSequence = async (slide) => {
+    updateSlide(slide.id, 'extracting', true);
+    try {
+      const result = await extractFramesFromVideo(
+        slide.file || slide.url,
+        { fps: 15, maxFrames: 60, maxWidth: 1280 },
+        (pct) => updateSlide(slide.id, 'extractProgress', pct)
+      );
+      updateSlide(slide.id, 'isCanvasSequence', true);
+      updateSlide(slide.id, 'sequenceData', result);
+    } catch (err) {
+      alert(err.message || 'Erro ao converter vídeo.');
+    } finally {
+      updateSlide(slide.id, 'extracting', false);
+    }
   };
 
   // Memory Leak Fix (3.1): Revoke Object URLs on remove
@@ -171,6 +194,36 @@ export default function UploadPanel({
           <p className="text-xs text-slate-400 mt-1">
             Recepção, hall, salas de atendimento, lounge (JPG, PNG, WEBP, MP4)
           </p>
+        </div>
+
+        {/* Atalho: vídeo curto -> sequência de quadros (scrollytelling estilo Apple) */}
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3.5 flex items-center gap-3">
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) handleFilesSelected(e.target.files, { autoSequence: true });
+              e.target.value = '';
+            }}
+          />
+          <div className="w-10 h-10 shrink-0 rounded-lg bg-sky-500/15 text-sky-300 flex items-center justify-center">
+            <Film className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-100">Criar a partir de um vídeo</p>
+            <p className="text-[11px] text-slate-400">
+              Envie um vídeo curto: ele vira uma sequência de quadros que avança com a rolagem.
+            </p>
+          </div>
+          <button
+            onClick={() => videoInputRef.current?.click()}
+            aria-label="Enviar vídeo e gerar sequência de quadros automaticamente"
+            className="shrink-0 px-3 py-1.5 text-xs font-bold bg-sky-500 hover:bg-sky-400 text-white rounded-lg transition"
+          >
+            Enviar vídeo
+          </button>
         </div>
 
         {/* Configurações Gerais da Página e Animação (6.1 & SEO 4.1) */}
@@ -389,22 +442,7 @@ export default function UploadPanel({
                         </span>
                       ) : (
                         <button
-                          onClick={async () => {
-                            updateSlide(slide.id, 'extracting', true);
-                            try {
-                              const result = await extractFramesFromVideo(
-                                slide.file || slide.url,
-                                { fps: 15, maxFrames: 60, maxWidth: 1280 },
-                                (pct) => updateSlide(slide.id, 'extractProgress', pct)
-                              );
-                              updateSlide(slide.id, 'isCanvasSequence', true);
-                              updateSlide(slide.id, 'sequenceData', result);
-                            } catch (err) {
-                              alert(err.message || 'Erro ao converter vídeo.');
-                            } finally {
-                              updateSlide(slide.id, 'extracting', false);
-                            }
-                          }}
+                          onClick={() => convertToSequence(slide)}
                           disabled={slide.extracting}
                           aria-label="Gerar sequência de quadros Canvas 60fps"
                           className="px-2.5 py-1 text-[11px] font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 rounded transition flex items-center gap-1"
