@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Eye, Code2, Download } from 'lucide-react';
 import UploadPanel from './components/UploadPanel';
 import ScrollytellingPreview from './components/ScrollytellingPreview';
@@ -23,10 +23,16 @@ export default function App() {
     setSlides(PRESET_SLIDES);
   };
 
-  // Memory Leak Cleanup (3.1): Revoke Object URLs on unmount
+  // Memory Leak Cleanup (3.1): Revoke Object URLs only on unmount.
+  // Individual removals are already revoked in UploadPanel; revoking on every
+  // `slides` change would invalidate URLs still used by the remaining slides.
+  const slidesRef = useRef(slides);
+  useEffect(() => {
+    slidesRef.current = slides;
+  }, [slides]);
   useEffect(() => {
     return () => {
-      slides.forEach(s => {
+      slidesRef.current.forEach(s => {
         if (s.url?.startsWith('blob:')) URL.revokeObjectURL(s.url);
         if (s.sequenceData?.frames) {
           s.sequenceData.frames.forEach(f => {
@@ -35,7 +41,7 @@ export default function App() {
         }
       });
     };
-  }, [slides]);
+  }, []);
 
   const handleQuickExport = async () => {
     if (slides.length === 0) return;
@@ -44,6 +50,7 @@ export default function App() {
       await exportToZip(slides, settings);
     } catch (err) {
       console.error(err);
+      window.alert('Não foi possível exportar o pacote .zip. Verifique as mídias e tente novamente.');
     } finally {
       setIsExporting(false);
     }

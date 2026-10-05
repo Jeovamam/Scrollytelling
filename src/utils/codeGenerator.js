@@ -573,17 +573,18 @@ document.addEventListener("DOMContentLoaded", () => {
         images.push(img);
       }
 
+      let targetFrame = 0;
+      let currentFrame = 0;
+      let lastDrawnFrame = -1;
+
       function resizeCanvas() {
         if (!canvas.parentElement) return;
         canvas.width = canvas.parentElement.clientWidth;
         canvas.height = canvas.parentElement.clientHeight;
+        lastDrawnFrame = -1; // redimensionar limpa o canvas: força redesenho do quadro atual
       }
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
-
-      let targetFrame = 0;
-      let currentFrame = 0;
-      let lastDrawnFrame = -1;
 
       function setTargetFrame(frameIdx) {
         targetFrame = Math.max(0, Math.min(frameIdx, totalFrames - 1));
@@ -591,7 +592,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       function drawFrame(frameIdx) {
         const img = images[Math.max(0, Math.min(frameIdx, images.length - 1))];
-        if (!img || (!img.complete && img.naturalWidth === 0)) return;
+        if (!img || !img.complete || img.naturalWidth === 0) return false;
         const cw = canvas.width;
         const ch = canvas.height;
         const iw = img.naturalWidth || 1280;
@@ -602,6 +603,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx2d.clearRect(0, 0, cw, ch);
         ctx2d.globalAlpha = 1.0;
         ctx2d.drawImage(img, (cw - nw) / 2, (ch - nh) / 2, nw, nh);
+        return true;
       }
 
       function loopRAF() {
@@ -613,8 +615,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const frameToDraw = Math.round(currentFrame);
         if (frameToDraw !== lastDrawnFrame) {
-          drawFrame(frameToDraw);
-          lastDrawnFrame = frameToDraw;
+          if (drawFrame(frameToDraw)) lastDrawnFrame = frameToDraw;
         }
         requestAnimationFrame(loopRAF);
       }
