@@ -25,83 +25,101 @@ export async function extractFramesFromVideo(videoFileOrUrl, options = {}, onPro
 
     video.src = sourceUrl;
 
+    const releaseSource = () => {
+      if (typeof videoFileOrUrl !== 'string') URL.revokeObjectURL(sourceUrl);
+    };
+
+    const frames = [];
+
     video.onloadedmetadata = async () => {
-      const duration = video.duration;
-      if (!duration || isNaN(duration) || duration === Infinity) {
-        reject(new Error('Duração do vídeo inválida.'));
-        return;
-      }
-
-      let totalFrames = Math.min(Math.floor(duration * fps), maxFrames);
-      if (totalFrames < 5) totalFrames = 5;
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      let width = video.videoWidth || 1280;
-      let height = video.videoHeight || 720;
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-      canvas.width = width;
-      canvas.height = height;
-
-      const frames = [];
-
-      const extension = format === 'image/webp' ? 'webp' : 'jpg';
-
-      for (let i = 0; i < totalFrames; i++) {
-        const time = (i / (totalFrames - 1)) * (duration - 0.05);
-        if (onProgress) {
-          onProgress(Math.round(((i + 1) / totalFrames) * 100), i + 1, totalFrames);
+      try {
+        const duration = video.duration;
+        if (!duration || isNaN(duration) || duration === Infinity) {
+          releaseSource();
+          reject(new Error('Duração do vídeo inválida.'));
+          return;
         }
 
-        await seekVideoToTime(video, time);
-        ctx.drawImage(video, 0, 0, width, height);
+        let totalFrames = Math.min(Math.floor(duration * fps), maxFrames);
+        if (totalFrames < 5) totalFrames = 5;
 
-        // Memory optimization: export Blob and revokable objectUrl
-        const blob = await canvasToBlob(canvas, format, quality);
-        const objectUrl = URL.createObjectURL(blob);
-        const fileName = `frame_${String(i + 1).padStart(3, '0')}.${extension}`;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
 
-        frames.push({
-          index: i,
-          time,
-          url: objectUrl,
-          objectUrl,
-          blob,
-          fileName,
+        let width = video.videoWidth || 1280;
+        let height = video.videoHeight || 720;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+
+        const extension = format === 'image/webp' ? 'webp' : 'jpg';
+
+        for (let i = 0; i < totalFrames; i++) {
+          const time = (i / (totalFrames - 1)) * (duration - 0.05);
+          if (onProgress) {
+            onProgress(Math.round(((i + 1) / totalFrames) * 100), i + 1, totalFrames);
+          }
+
+          await seekVideoToTime(video, time);
+          ctx.drawImage(video, 0, 0, width, height);
+
+          // Memory optimization: export Blob and revokable objectUrl
+          const blob = await canvasToBlob(canvas, format, quality);
+          const objectUrl = URL.createObjectURL(blob);
+          const fileName = `frame_${String(i + 1).padStart(3, '0')}.${extension}`;
+
+          frames.push({
+            index: i,
+            time,
+            url: objectUrl,
+            objectUrl,
+            blob,
+            fileName,
+            width,
+            height
+          });
+        }
+
+        releaseSource();
+
+        resolve({
+          duration,
+          totalFrames: frames.length,
           width,
-          height
+          height,
+          frames
         });
+      } catch (err) {
+        frames.forEach((f) => URL.revokeObjectURL(f.objectUrl));
+        releaseSource();
+        reject(err);
       }
-
-      if (typeof videoFileOrUrl !== 'string') {
-        URL.revokeObjectURL(sourceUrl);
-      }
-
-      resolve({
-        duration,
-        totalFrames: frames.length,
-        width,
-        height,
-        frames
-      });
     };
 
     video.onerror = () => {
+      releaseSource();
       reject(new Error('Não foi possível carregar o vídeo para extração de quadros.'));
     };
   });
 }
 
-function seekVideoToTime(video, time) {
-  return new Promise((resolve) => {
-    const handleSeeked = () => {
+function seekVideoToTime(video, time, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
       video.removeEventListener('seeked', handleSeeked);
+    };
+    const handleSeeked = () => {
+      cleanup();
       resolve();
     };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('Tempo esgotado ao posicionar o vídeo para extração de quadros.'));
+    }, timeoutMs);
     video.addEventListener('seeked', handleSeeked);
     video.currentTime = time;
   });
