@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   Upload, 
   Sparkles, 
@@ -14,6 +14,7 @@ import {
   Globe
 } from 'lucide-react';
 import { extractFramesFromVideo } from '../utils/videoFrameExtractor';
+import { generateWalkthroughFrames } from '../utils/walkthroughFrames';
 
 export default function UploadPanel({ 
   slides, 
@@ -24,6 +25,7 @@ export default function UploadPanel({
 }) {
   const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const [walk, setWalk] = useState({ a: null, b: null, zoom: 2.0, busy: false, progress: 0 });
 
   const handleFilesSelected = (files, { autoSequence = false } = {}) => {
     const newSlides = Array.from(files).map((file, idx) => {
@@ -95,6 +97,40 @@ export default function UploadPanel({
       alert(err.message || 'Erro ao converter vídeo.');
     } finally {
       updateSlide(slide.id, 'extracting', false);
+    }
+  };
+
+  // Passeio: gera a sequência de quadros entre uma imagem inicial e uma final
+  const handleCreateWalkthrough = async () => {
+    if (!walk.a || !walk.b || walk.busy) return;
+    setWalk((w) => ({ ...w, busy: true, progress: 0 }));
+    try {
+      const result = await generateWalkthroughFrames(
+        walk.a,
+        walk.b,
+        { frames: 60, zoomA: walk.zoom, zoomB: 1 + (walk.zoom - 1) * 0.45 },
+        (pct) => setWalk((w) => ({ ...w, progress: pct }))
+      );
+      const name = (f) => f.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      setSlides((prev) => [
+        ...prev,
+        {
+          id: `walk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          sequence: prev.length + 1,
+          title: `${name(walk.a)} → ${name(walk.b)}`,
+          caption: '',
+          type: 'image',
+          url: result.frames[0].objectUrl,
+          isCanvasSequence: true,
+          sequenceData: result,
+          overlayTheme: 'dark',
+          captionPosition: 'bottom-left'
+        }
+      ]);
+      setWalk({ a: null, b: null, zoom: walk.zoom, busy: false, progress: 0 });
+    } catch (err) {
+      alert(err.message || 'Erro ao gerar o passeio.');
+      setWalk((w) => ({ ...w, busy: false, progress: 0 }));
     }
   };
 
@@ -224,6 +260,57 @@ export default function UploadPanel({
           >
             Enviar vídeo
           </button>
+        </div>
+
+        {/* Passeio: imagem inicial + imagem final -> animação de caminhada */}
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-100 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-emerald-300" />
+              Passeio entre duas imagens
+            </p>
+            <p className="text-[11px] text-slate-400">
+              Envie a imagem da entrada e a do interior: o app cria o avanço entre elas, que acompanha a rolagem.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            {[['a', 'Imagem inicial (entrada)'], ['b', 'Imagem final (interior)']].map(([key, label]) => (
+              <label key={key} className="cursor-pointer rounded-lg border border-slate-700 hover:border-emerald-500/60 bg-slate-950/50 px-2.5 py-2 text-slate-300 truncate">
+                <span className="block text-[10px] uppercase tracking-wide text-slate-500">{label}</span>
+                <span className="block truncate">{walk[key] ? walk[key].name : 'Escolher imagem…'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setWalk((w) => ({ ...w, [key]: file }));
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <label className="text-slate-400" htmlFor="walk-zoom">Avanço</label>
+            <select
+              id="walk-zoom"
+              value={walk.zoom}
+              onChange={(e) => setWalk((w) => ({ ...w, zoom: Number(e.target.value) }))}
+              className="bg-slate-950 border border-slate-700 rounded-md px-2 py-1 text-slate-200"
+            >
+              <option value={1.6}>Suave</option>
+              <option value={2}>Médio</option>
+              <option value={2.6}>Forte</option>
+            </select>
+            <button
+              onClick={handleCreateWalkthrough}
+              disabled={!walk.a || !walk.b || walk.busy}
+              className="ml-auto px-3 py-1.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white rounded-lg transition flex items-center gap-1"
+            >
+              {walk.busy ? (<><Loader2 className="w-3 h-3 animate-spin" />Gerando {walk.progress}%</>) : 'Gerar passeio'}
+            </button>
+          </div>
         </div>
 
         {/* Configurações Gerais da Página e Animação (6.1 & SEO 4.1) */}
