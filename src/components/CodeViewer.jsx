@@ -1,18 +1,35 @@
 import React, { useState, useMemo } from 'react';
 import { Copy, Check, Download, Code2, FileCode, FileText, Loader2 } from 'lucide-react';
-import { generateHTML, generateCSS, generateJS } from '../utils/codeGenerator';
+import {
+  generateHTML, generateCSS, generateJS,
+  generateEmbedHTML, generateEmbedCSS, generateEmbedJS
+} from '../utils/codeGenerator';
 import { exportToZip } from '../utils/zipExporter';
 
 export default function CodeViewer({ slides, settings }) {
   const [activeTab, setActiveTab] = useState('html'); // 'html', 'css', 'js'
+  const [mode, setMode] = useState('page'); // 'page' | 'embed'
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState('');
 
   // Memoize generated code to prevent heavy string processing on unrelated re-renders
-  const htmlCode = useMemo(() => generateHTML(slides, settings), [slides, settings]);
-  const cssCode = useMemo(() => generateCSS(settings), [settings]);
-  const jsCode = useMemo(() => generateJS(slides, settings), [slides, settings]);
+  const isEmbed = mode === 'embed';
+  const htmlCode = useMemo(
+    () => (isEmbed ? generateEmbedHTML(slides, settings) : generateHTML(slides, settings)),
+    [isEmbed, slides, settings]
+  );
+  const cssCode = useMemo(
+    () => (isEmbed ? generateEmbedCSS(settings) : generateCSS(settings)),
+    [isEmbed, settings]
+  );
+  const jsCode = useMemo(
+    () => (isEmbed ? generateEmbedJS(slides, settings) : generateJS(slides, settings)),
+    [isEmbed, slides, settings]
+  );
+  const fileNames = isEmbed
+    ? { html: 'embed.html', css: 'scrolly-embed.css', js: 'scrolly-embed.js' }
+    : { html: 'index.html', css: 'styles.css', js: 'script.js (GSAP)' };
 
   const getActiveCode = () => {
     switch (activeTab) {
@@ -37,6 +54,7 @@ export default function CodeViewer({ slides, settings }) {
       await exportToZip(slides, settings, (status) => setExportProgress(status));
     } catch (err) {
       console.error('Erro ao exportar ZIP:', err);
+      window.alert('Não foi possível exportar o pacote .zip. Verifique as mídias e tente novamente.');
     } finally {
       setIsExporting(false);
       setExportProgress('');
@@ -47,6 +65,20 @@ export default function CodeViewer({ slides, settings }) {
     <div className="flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden">
       {/* Header com Abas e Ações */}
       <div className="p-3 border-b border-slate-800 bg-slate-900/90 backdrop-blur flex items-center justify-between z-10 flex-wrap gap-2">
+        {/* Modo de exportação */}
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+          {[['page', 'Página completa'], ['embed', 'Módulo embutível']].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setMode(id)}
+              aria-pressed={mode === id}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${mode === id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Abas */}
         <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
           <button
@@ -55,7 +87,7 @@ export default function CodeViewer({ slides, settings }) {
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'html' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <FileCode className="w-3.5 h-3.5" />
-            index.html
+            {fileNames.html}
           </button>
           <button
             onClick={() => setActiveTab('css')}
@@ -63,7 +95,7 @@ export default function CodeViewer({ slides, settings }) {
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'css' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <FileText className="w-3.5 h-3.5" />
-            styles.css
+            {fileNames.css}
           </button>
           <button
             onClick={() => setActiveTab('js')}
@@ -71,7 +103,7 @@ export default function CodeViewer({ slides, settings }) {
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'js' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
             <Code2 className="w-3.5 h-3.5" />
-            script.js (GSAP)
+            {fileNames.js}
           </button>
         </div>
 

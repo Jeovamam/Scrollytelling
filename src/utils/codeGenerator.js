@@ -14,63 +14,7 @@ export function generateHTML(slides, settings = {}) {
   const has360 = slides.some(s => s.is360);
   const fallbackOgImage = ogImage || (slides[0]?.fileName ? `assets/${slides[0].fileName}` : (slides[0]?.url || ''));
 
-  const slidesMarkup = slides.map((slide, index) => {
-    const isVideo = slide.type === 'video' || slide.file?.type?.startsWith('video/');
-    const is360 = !!slide.is360;
-    const isCanvasSeq = !!slide.isCanvasSequence;
-    const totalFrames = slide.sequenceData?.totalFrames || 30;
-    const src = slide.fileName ? `assets/${slide.fileName}` : slide.url;
-    const altText = escapeHtml(slide.title || slide.caption || `Imagem do ambiente ${index + 1}`);
-    
-    let mediaTag;
-    if (isCanvasSeq) {
-      let ext = "webp"; // Default to webp as we upgraded the extractor
-      if (slide.sequenceData?.frames?.length > 0) {
-         const firstFileName = slide.sequenceData.frames[0].fileName;
-         ext = firstFileName.split('.').pop();
-      }
-      mediaTag = `
-        <canvas id="canvas-seq-${index}" class="scrolly-canvas-seq" data-frames-dir="assets/frames_slide_${index + 1}" data-total-frames="${totalFrames}" data-frame-ext="${ext}"></canvas>
-        <div class="scrolly-360-badge">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
-          <span>Sequência Canvas 60fps</span>
-        </div>`;
-    } else if (is360) {
-      mediaTag = `
-        <div id="panorama-${index}" class="scrolly-panorama" data-src="${src}"></div>
-        <div class="scrolly-360-badge">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          <span>Visão 360° (Mova o cursor para olhar os lados)</span>
-        </div>`;
-    } else if (isVideo) {
-      mediaTag = `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`;
-    } else {
-      mediaTag = `<img src="${src}" alt="${altText}" class="scrolly-media" loading="${index === 0 ? 'eager' : 'lazy'}" />`;
-    }
-
-    const posClass = `pos-${slide.captionPosition || 'bottom-left'}`;
-    const themeClass = `theme-${slide.overlayTheme || 'dark'}`;
-
-    return `
-      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} -->
-      <div class="scrolly-slide" data-slide-index="${index}" data-is-360="${is360}" data-is-canvas="${isCanvasSeq}">
-        <div class="scrolly-media-wrapper">
-          ${mediaTag}
-          <div class="scrolly-overlay"></div>
-        </div>
-        ${(slide.title || slide.caption) ? `
-        <div class="scrolly-caption-box ${posClass} ${themeClass}">
-          <div class="scrolly-step-tag">
-            <span class="step-num">${String(index + 1).padStart(2, '0')}</span>
-            <span class="step-divider">/</span>
-            <span class="step-total">${String(slides.length).padStart(2, '0')}</span>
-            <span class="step-label">Passo a Passo do Imóvel</span>
-          </div>
-          ${slide.title ? `<h3 class="scrolly-title">${escapeHtml(slide.title)}</h3>` : ''}
-          ${slide.caption ? `<p class="scrolly-desc">${escapeHtml(slide.caption)}</p>` : ''}
-        </div>` : ''}
-      </div>`;
-  }).join('\n');
+  const slidesMarkup = renderSlidesMarkup(slides);
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -532,21 +476,27 @@ body.scrolly-body {
 `;
 }
 
-export function generateJS(slides, settings = {}) {
+export function generateJS(slides, settings = {}, options = {}) {
   const { zoomScale = 1.45, scrubDuration = 1 } = settings;
+  const { rootSelector = '#tour-virtual' } = options;
 
   return `/* ==========================================================================
    SCROLLYTELLING ENGINE - FLY-THROUGH + CANVAS SEQUENCE (APPLE-STYLE) + 360 LERP
    ========================================================================== */
 
-document.addEventListener("DOMContentLoaded", () => {
+(function () {
+function initScrollytelling() {
+  if (!window.gsap || !window.ScrollTrigger) {
+    console.warn("[Scrollytelling] GSAP e ScrollTrigger precisam ser carregados antes deste script.");
+    return;
+  }
   gsap.registerPlugin(ScrollTrigger);
 
   // Acessibilidade WCAG: suporte a movimento reduzido no sistema
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const section = document.querySelector("#tour-virtual");
-  const slides = gsap.utils.toArray(".scrolly-slide");
+  const section = document.querySelector(${JSON.stringify(rootSelector)});
+  const slides = section ? gsap.utils.toArray(".scrolly-slide", section) : [];
   const slideCount = slides.length;
   const panViewers = {};
   const canvasSequences = {};
@@ -878,8 +828,75 @@ document.addEventListener("DOMContentLoaded", () => {
       ScrollTrigger.refresh();
     }, 200);
   });
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initScrollytelling);
+} else {
+  initScrollytelling();
+}
+})();
 `;
+}
+
+function renderSlidesMarkup(slides) {
+  return slides.map((slide, index) => {
+    const isVideo = slide.type === 'video' || slide.file?.type?.startsWith('video/');
+    const is360 = !!slide.is360;
+    const isCanvasSeq = !!slide.isCanvasSequence;
+    const totalFrames = slide.sequenceData?.totalFrames || 30;
+    const src = slide.fileName ? `assets/${slide.fileName}` : slide.url;
+    const altText = escapeHtml(slide.title || slide.caption || `Imagem do ambiente ${index + 1}`);
+    
+    let mediaTag;
+    if (isCanvasSeq) {
+      let ext = "webp"; // Default to webp as we upgraded the extractor
+      if (slide.sequenceData?.frames?.length > 0) {
+         const firstFileName = slide.sequenceData.frames[0].fileName;
+         ext = firstFileName.split('.').pop();
+      }
+      mediaTag = `
+        <canvas id="canvas-seq-${index}" class="scrolly-canvas-seq" data-frames-dir="assets/frames_slide_${index + 1}" data-total-frames="${totalFrames}" data-frame-ext="${ext}"></canvas>
+        <div class="scrolly-360-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.934a.5.5 0 0 0-.777-.416L16 11"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg>
+          <span>Sequência Canvas 60fps</span>
+        </div>`;
+    } else if (is360) {
+      mediaTag = `
+        <div id="panorama-${index}" class="scrolly-panorama" data-src="${src}"></div>
+        <div class="scrolly-360-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          <span>Visão 360° (Mova o cursor para olhar os lados)</span>
+        </div>`;
+    } else if (isVideo) {
+      mediaTag = `<video src="${src}" autoplay muted loop playsinline class="scrolly-media"></video>`;
+    } else {
+      mediaTag = `<img src="${src}" alt="${altText}" class="scrolly-media" loading="${index === 0 ? 'eager' : 'lazy'}" />`;
+    }
+
+    const posClass = `pos-${slide.captionPosition || 'bottom-left'}`;
+    const themeClass = `theme-${slide.overlayTheme || 'dark'}`;
+
+    return `
+      <!-- Slide ${index + 1}: ${escapeHtml(slide.title || 'Ambiente')} -->
+      <div class="scrolly-slide" data-slide-index="${index}" data-is-360="${is360}" data-is-canvas="${isCanvasSeq}">
+        <div class="scrolly-media-wrapper">
+          ${mediaTag}
+          <div class="scrolly-overlay"></div>
+        </div>
+        ${(slide.title || slide.caption) ? `
+        <div class="scrolly-caption-box ${posClass} ${themeClass}">
+          <div class="scrolly-step-tag">
+            <span class="step-num">${String(index + 1).padStart(2, '0')}</span>
+            <span class="step-divider">/</span>
+            <span class="step-total">${String(slides.length).padStart(2, '0')}</span>
+            <span class="step-label">Passo a Passo do Imóvel</span>
+          </div>
+          ${slide.title ? `<h3 class="scrolly-title">${escapeHtml(slide.title)}</h3>` : ''}
+          ${slide.caption ? `<p class="scrolly-desc">${escapeHtml(slide.caption)}</p>` : ''}
+        </div>` : ''}
+      </div>`;
+  }).join('\n');
 }
 
 function escapeHtml(str) {
@@ -890,4 +907,110 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/**
+ * EMBEDDABLE MODULE
+ * Same engine as the full page, but without <html>/<body>, demo header/footer or global
+ * resets. Everything is scoped under `.scrolly-embed`, so it can be dropped into any
+ * existing page (WordPress, Webflow, React, plain HTML) without leaking styles.
+ */
+const EMBED_ROOT = '#tour-virtual';
+const EMBED_SCOPE = '.scrolly-embed';
+
+export function generateEmbedHTML(slides) {
+  const has360 = slides.some(s => s.is360);
+
+  return `<!-- ===== Scrollytelling embutível (cole onde a seção deve aparecer) ===== -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scrolly-embed.css" />
+
+<div class="scrolly-embed">
+  <section class="scrollytelling-section" id="tour-virtual">
+    <div class="scrollytelling-sticky-viewport">
+      <div class="scrollytelling-slides-wrapper">
+        ${renderSlidesMarkup(slides)}
+      </div>
+
+      <div class="scrolly-scroll-hint">
+        <div class="mouse-icon"></div>
+        <small>Role para avançar e adentrar nos ambientes</small>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Dependências (omita as que a sua página já carrega) -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" crossorigin="anonymous"></script>${has360 ? `
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>` : ''}
+<script src="scrolly-embed.js"></script>
+`;
+}
+
+export function generateEmbedCSS(settings = {}) {
+  const css = generateCSS(settings);
+
+  // Keep only the scrollytelling rules: drop the demo landing page (lp-*) and body/reset blocks
+  const scoped = scopeCss(css, EMBED_SCOPE).replace(/^\s*overflow-x: hidden;\n/m, '');
+
+  return `/* Scrollytelling embutível: todos os seletores ficam sob ${EMBED_SCOPE} */
+${scoped}
+
+/* No módulo embutido a largura segue o container da página, não a janela */
+${EMBED_SCOPE} .scrollytelling-sticky-viewport { width: 100%; }
+/* overflow-x: clip não cria um scroll container, preservando o position: sticky */
+${EMBED_SCOPE} { overflow-x: clip; }
+`;
+}
+
+export function generateEmbedJS(slides, settings = {}) {
+  return generateJS(slides, settings, { rootSelector: `${EMBED_SCOPE} ${EMBED_ROOT}` });
+}
+
+/**
+ * Prefixes every top-level selector (and those nested in @media) with `scope`.
+ * `:root` and `body.scrolly-body` map to the scope itself; `lp-*` demo rules are dropped.
+ */
+function scopeCss(css, scope) {
+  const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const scopeSelectors = (list) => list
+    .split(',')
+    .map(sel => sel.trim())
+    .filter(sel => sel && !/\.lp-/.test(sel))
+    .map(sel => {
+      if (sel === ':root' || sel === 'body.scrolly-body') return scope;
+      if (sel === '*') return `${scope} *`;
+      return `${scope} ${sel}`;
+    });
+
+  const process = (text) => {
+    let result = '';
+    let pos = 0;
+    while (pos < text.length) {
+      const open = text.indexOf('{', pos);
+      if (open === -1) break;
+      const prelude = text.slice(pos, open).trim();
+      let depth = 0;
+      let close = open;
+      for (; close < text.length; close++) {
+        if (text[close] === '{') depth++;
+        else if (text[close] === '}' && --depth === 0) break;
+      }
+      const body = text.slice(open + 1, close);
+      if (prelude.startsWith('@media')) {
+        const inner = process(body);
+        if (inner.trim()) result += `${prelude} {\n${inner}}\n`;
+      } else if (prelude.startsWith('@')) {
+        result += `${prelude} {${body}}\n`; // @keyframes etc. stay untouched
+      } else {
+        const selectors = scopeSelectors(prelude);
+        if (selectors.length) result += `${selectors.join(',\n')} {${body}}\n`;
+      }
+      pos = close + 1;
+    }
+    return result;
+  };
+
+  return process(stripped);
 }

@@ -1,6 +1,9 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { generateHTML, generateCSS, generateJS } from './codeGenerator';
+import {
+  generateHTML, generateCSS, generateJS,
+  generateEmbedHTML, generateEmbedCSS, generateEmbedJS
+} from './codeGenerator';
 
 /**
  * Downloads a complete ZIP package containing index.html, styles.css, script.js and assets/
@@ -19,6 +22,11 @@ export async function exportToZip(slides, settings = {}, onProgress) {
   zip.file('index.html', htmlContent);
   zip.file('styles.css', cssContent);
   zip.file('script.js', jsContent);
+
+  // Módulo embutível (cole embed.html em qualquer página; usa a mesma pasta assets/)
+  zip.file('embed.html', generateEmbedHTML(slides, settings));
+  zip.file('scrolly-embed.css', generateEmbedCSS(settings));
+  zip.file('scrolly-embed.js', generateEmbedJS(slides, settings));
   zip.file('README.md', `# Tour Virtual Scrollytelling (Landing Page)
 
 Este pacote foi gerado pelo **Scrollytelling Builder**.
@@ -28,7 +36,8 @@ Este pacote foi gerado pelo **Scrollytelling Builder**.
 1. Extraia o conteúdo deste arquivo .zip para a pasta do seu projeto.
 2. Abra o arquivo \`index.html\` no seu navegador ou integre a seção de Scrollytelling na sua Landing Page (WordPress, Webflow, React, HTML5, etc.).
 3. A pasta \`assets/\` contém todas as imagens, sequências de quadros de vídeo (estilo Apple) e mídias 360°.
-4. O efeito de rolagem utiliza GSAP ScrollTrigger via CDN oficial para máxima leveza e fluidez a 60fps.
+4. **Módulo embutível:** para inserir o tour dentro de uma página existente, use \`embed.html\` (+ \`scrolly-embed.css\` e \`scrolly-embed.js\`). Todo o CSS é isolado sob \`.scrolly-embed\`, sem afetar o resto da página; mantenha a pasta \`assets/\` ao lado.
+5. O efeito de rolagem utiliza GSAP ScrollTrigger via CDN oficial para máxima leveza e fluidez a 60fps.
 `);
 
   // 2. Fetch and add media assets
